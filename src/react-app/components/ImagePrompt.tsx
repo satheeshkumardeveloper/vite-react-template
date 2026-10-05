@@ -24,18 +24,11 @@ type UsageRecord = {
 	lastTokens: number | null;
 };
 
-type SavedPromptRecord = {
-	category: string;
-	prompt: string;
-	createdAt: string;
-};
-
 const MODEL = "gemini-3.6-flash";
 const MAX_DEMAND_RETRIES = 5;
 const DEMAND_RETRY_DELAY_MS = 2000;
 const USAGE_STORAGE_KEY = "geminiPromptUsage";
 const PRIVATE_MODE_STORAGE_KEY = "geminiPromptPrivateMode";
-const HISTORY_STORAGE_KEY = "geminiPromptHistory";
 
 const focusInstructions: Record<PromptFocus, string> = {
 	full: "Return a complete image-generation prompt covering all visible details.",
@@ -80,15 +73,6 @@ function loadUsage(): UsageRecord {
 	return savedUsage;
 }
 
-function loadHistory(): SavedPromptRecord[] {
-	try {
-		const saved = JSON.parse(localStorage.getItem(HISTORY_STORAGE_KEY) || "[]") as SavedPromptRecord[];
-		return Array.isArray(saved) ? saved : [];
-	} catch {
-		return [];
-}
-}
-
 function fileToBase64(file: File) {
 	return new Promise<string>((resolve, reject) => {
 		const reader = new FileReader();
@@ -104,6 +88,42 @@ async function readResponseJson(response: Response) {
 	} catch {
 		return { error: { message: await response.text() } };
 	}
+}
+
+async function loadCategorySuggestions() {
+	const response = await fetch("/api/image-prompts");
+	const records = await readResponseJson(response);
+
+	if (!response.ok) {
+		throw new Error(records?.error || "Failed to load saved prompts");
+	}
+
+	const categories = [...new Set(
+		(Array.isArray(records) ? records : [])
+			.map((record: { category?: string }) => record.category?.trim())
+			.filter((category): category is string => Boolean(category)),
+	)].sort((first, second) => first.localeCompare(second));
+
+	return categories;
+}
+
+async function saveGeneratedPrompt(prompt: string, category: string, images: File[]) {
+	const form = new FormData();
+	form.append("prompt", prompt);
+	form.append("category", category.trim());
+	images.forEach((file) => form.append("images", file, file.name));
+
+	const response = await fetch("/api/image-prompts", {
+		method: "POST",
+		body: form,
+	});
+	const data = await readResponseJson(response);
+
+	if (!response.ok) {
+		throw new Error(data?.error || "Failed to save prompt");
+	}
+
+	return data;
 }
 
 export function ImagePrompt({ onBackToDashboard, embedded = false }: { onBackToDashboard?: () => void; embedded?: boolean }) {
@@ -135,11 +155,11 @@ export function ImagePrompt({ onBackToDashboard, embedded = false }: { onBackToD
 	}, [selectedFiles.length]);
 
 	useEffect(() => {
-		setCategorySuggestions(
-			[...new Set(loadHistory().map((record) => record.category.trim()).filter(Boolean))].sort((a, b) =>
-				a.localeCompare(b),
-			),
-		);
+		loadCategorySuggestions()
+			.then((categories) => setCategorySuggestions(categories))
+			.catch((loadError) => {
+				console.error("Failed to load category suggestions:", loadError);
+			});
 	}, []);
 
 	useEffect(() => {
@@ -173,17 +193,6 @@ export function ImagePrompt({ onBackToDashboard, embedded = false }: { onBackToD
 	useEffect(() => {
 		localStorage.setItem(USAGE_STORAGE_KEY, JSON.stringify(usage));
 	}, [usage]);
-
-	const persistHistory = (nextPrompt: string) => {
-		const currentHistory = loadHistory();
-		currentHistory.push({
-			category: category.trim() || "Prompt",
-			prompt: nextPrompt,
-			createdAt: new Date().toISOString(),
-		});
-		localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(currentHistory));
-		setCategorySuggestions([...new Set(currentHistory.map((record) => record.category.trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b)));
-	};
 
 	const setSelectedImageFiles = (files: File[]) => {
 		const filtered = files.filter((file) => file.type.startsWith("image/"));
@@ -406,7 +415,12 @@ Do not add explanations before or after the prompt.`,
 			stopProgress(true);
 
 			if (!privateMode) {
-				persistHistory(generatedText);
+				await saveGeneratedPrompt(generatedText, category, selectedFiles);
+				try {
+					setCategorySuggestions(await loadCategorySuggestions());
+				} catch (loadError) {
+					console.error("Failed to refresh category suggestions:", loadError);
+				}
 			}
 
 			setUsage((currentUsage) => {
@@ -630,7 +644,7 @@ Do not add explanations before or after the prompt.`,
 								<span>{copyLabel}</span>
 							</button>
 						</div>
-						<small>Request history is tracked only in this browser. Token usage comes from the Gemini response.</small>
+						<small>Saved prompts are stored in your Cloudflare database when private mode is off. Token usage comes from the Gemini response.</small>
 					</section>
 				</div>
 			</div>

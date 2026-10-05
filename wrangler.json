@@ -11,5 +11,19 @@
 	"assets": {
 		"directory": "./dist/client",
 		"not_found_handling": "single-page-application"
-	}
+	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "vite_react_db",
+			"database_id": "YOUR_DATABASE_ID_HERE"
+		}
+	],
+	"r2_buckets": [
+		{
+			"binding": "IMAGES",
+			"bucket_name": "vite-react-images",
+			"jurisdiction": "eu"
+		}
+	]
 }
