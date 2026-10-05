@@ -568,7 +568,7 @@ export function ImagePromptHistory({ onBackToDashboard, embedded = false }: { on
 											<td style={{ padding: "12px 10px", color: "#f2f5f8", fontSize: "0.85rem", whiteSpace: "nowrap" }}>
 												{imagePaths[0] ? (
 													<img
-														src={`/api/image-prompts/image?key=${encodeURIComponent(imagePaths[0])}`}
+														src={`https://sdk.satheshdeveloper.workers.dev/api/image-prompts/image?key=${encodeURIComponent(imagePaths[0])}`}
 														alt="Reference"
 														style={{ width: 48, height: 48, borderRadius: 5, objectFit: "cover", border: "1px solid #2a3342" }}
 													/>
@@ -632,7 +632,7 @@ export function ImagePromptHistory({ onBackToDashboard, embedded = false }: { on
 												<div style={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "#8f9aaa" }}>Image</div>
 												{imagePaths[0] ? (
 													<img
-														src={`/api/image-prompts/image?key=${encodeURIComponent(imagePaths[0])}`}
+														src={`https://sdk.satheshdeveloper.workers.dev/api/image-prompts/image?key=${encodeURIComponent(imagePaths[0])}`}
 														alt="Reference"
 														style={{ width: "100%", height: "auto", borderRadius: 5, objectFit: "cover", border: "1px solid #2a3342" }}
 													/>
@@ -694,7 +694,7 @@ export function ImagePromptHistory({ onBackToDashboard, embedded = false }: { on
 											<td data-label="Image" style={{ padding: "12px", order: 1, width: "100%" }}>
 												{imagePaths[0] ? (
 													<img
-														src={`/api/image-prompts/image?key=${encodeURIComponent(imagePaths[0])}`}
+														src={`https://sdk.satheshdeveloper.workers.dev/api/image-prompts/image?key=${encodeURIComponent(imagePaths[0])}`}
 														alt="Reference"
 														style={{ width: "100%", height: 160, borderRadius: 8, objectFit: "cover", border: "1px solid #2a3342" }}
 													/>
@@ -1151,7 +1151,7 @@ export function ImagePromptHistory({ onBackToDashboard, embedded = false }: { on
 						{viewPrompt.image_path && imagePathsForRecord(viewPrompt.image_path)[0] && (
 							<div style={{ marginBottom: "16px" }}>
 								<img
-									src={`/api/image-prompts/image?key=${encodeURIComponent(imagePathsForRecord(viewPrompt.image_path)[0])}`}
+									src={`https://sdk.satheshdeveloper.workers.dev/api/image-prompts/image?key=${encodeURIComponent(imagePathsForRecord(viewPrompt.image_path)[0])}`}
 									alt="Preview"
 									style={{ width: "100%", maxHeight: "300px", borderRadius: 8, objectFit: "cover", border: "1px solid #2a3342" }}
 								/>
