@@ -53,6 +53,75 @@ const focusInstructions: Record<PromptFocus, string> = {
 	style: "Focus on the photographic or editorial style, realism, sharpness, texture, and overall visual quality.",
 };
 
+type InstructionPreset = {
+	value: string;
+	label: string;
+	text: (focusText: string) => string;
+};
+
+const createImagePromptInstructions = (): InstructionPreset[] => [
+	{
+		value: "default",
+		label: "Default",
+		text: (focus: string) => `Analyze the reference image internally and generate one concise, natural AI image-generation prompt that recreates the image as accurately as possible.
+
+Write the result in the style of a professional image-generation prompt similar to:
+"A full-body photograph of a person with long dark hair, posed in profile and looking directly at the camera. They are wearing [exact clothing details]. They are standing [exact pose and environment]. The scene includes [important background details]. The image is captured from [camera viewpoint/framing] with [lighting and visual style]."
+
+Start directly with an actionable phrase such as "Create an image of" or "Generate a photorealistic image of".
+
+Focus on the most important visible details: exact clothing and accessories, hairstyle, pose, body orientation, facial expression and gaze, background and environment, important objects, camera viewpoint and angle, framing, perspective, lighting, colors, and photographic style.
+
+Describe clothing as specifically as possible, including the exact garments, colors, patterns, materials, shape, and visible details. Describe the pose precisely, including whether the subject is facing forward, sideways, in profile, turned away, sitting, standing, leaning, or interacting with something. Describe the camera view clearly, such as full-body, three-quarter, waist-up, close-up, eye-level, low-angle, high-angle, front view, side view, or three-quarter view, when visually apparent.
+
+Do not identify the person or guess their identity. Do not describe or classify body type, weight, attractiveness, gender, race, ethnicity, health, personality, or other personal attributes. Do not use terms such as fat, thin, slim, curvy, plus-size, muscular, beautiful, attractive, or similar classifications. Use neutral visual descriptions only.
+
+Do not invent details that are not visible in the reference image. If a detail is unclear, omit it rather than guessing.
+
+Keep the final prompt concise and natural. Include only details that materially contribute to recreating the reference image. Do not turn the output into a technical checklist.
+
+Return ONLY ONE continuous paragraph. Do not include headings, bullet points, labels, explanations, analysis, or any extra text. ${focus}`.trim(),
+	},
+	{
+		value: "detailed",
+		label: "More Detail Way",
+		text: (focus: string) => `Create a highly detailed photorealistic image matching the reference image as closely as possible, preserving the visible clothing, accessories, hairstyle, pose, facial expression, gaze, body orientation, environment, background elements, colors, textures, and composition without inventing unclear details. Capture the subject with a professional full-frame camera using a 135mm telephoto portrait lens, from a natural eye-level viewpoint and appropriate distance, with strong subject-background separation, realistic optical compression, shallow depth of field, smooth natural bokeh, precise focus on the subject's eyes and visible facial details, fine skin and fabric texture, realistic hair strands, accurate material rendering, subtle natural shadows, balanced exposure, soft directional lighting, true-to-life colors, high dynamic range, realistic contrast, and an ultra-detailed professional editorial photography aesthetic. ${focus}`.trim(),
+	},
+	{
+		value: "category-wise",
+		label: "Category Wise",
+		text: (focus: string) => `Analyze the reference image internally and generate one highly accurate AI image-generation prompt by examining the image using the following categories. Include only details that are clearly visible in the reference image. Do not guess, assume, identify, or invent details.
+
+Subject: Describe the visible subject's position, orientation, hairstyle, hair length, hair arrangement, facial expression, gaze direction, and other clearly visible visual details using neutral language.
+
+Dress: Describe the clothing in precise detail, including garment type, color, patterns, fabric, texture, neckline, sleeves, straps, length, folds, embroidery, borders, buttons, seams, layering, transparency, and other visible characteristics. Include footwear if visible.
+
+Accessories: Describe clearly visible jewelry, watches, glasses, bags, belts, hair accessories, or other accessories, including their color, material, shape, and placement.
+
+Pose: Describe the exact posture and body orientation, including standing, sitting, leaning, walking, hand position, arm position, leg position, head angle, shoulder direction, and interaction with nearby objects.
+
+Facial Expression: Describe the visible expression, eye direction, mouth position, head position, and clearly visible facial details without identifying the person or making personal judgments.
+
+Environment: Describe the location, surroundings, architecture, furniture, vegetation, landscape, floor, walls, weather, and other environmental elements visible in the image.
+
+Background: Describe important background objects, colors, textures, depth, foreground elements, and their spatial relationship with the subject.
+
+Composition: Describe subject placement, framing, negative space, perspective, symmetry, foreground, background, and overall visual arrangement.
+
+Camera: Describe the apparent camera viewpoint, height, angle, framing, distance, and perspective. Recreate the photograph using a professional full-frame camera with a 135mm telephoto lens, realistic optical compression, natural proportions, shallow depth of field, and smooth background bokeh.
+
+Lighting: Describe light direction, softness, intensity, shadows, highlights, reflections, color temperature, and overall illumination.
+
+Colors & Details: Accurately reproduce visible colors, textures, materials, fine details, realistic skin and hair texture, fabric fibers, natural shadows, and environmental details.
+
+Type of Image: Specify whether the reference appears to be a photorealistic portrait, fashion photograph, editorial photograph, lifestyle photograph, cinematic photograph, or another clearly identifiable visual style.
+
+Image Quality: Request highly detailed photorealistic rendering, realistic textures, natural colors, accurate lighting, realistic depth of field, clean fine details, and professional photographic quality.
+
+Final Output: Convert the observations into ONE concise, natural, continuous AI image-generation prompt beginning with "Create a highly detailed photorealistic image of". Do not include headings, explanations, analysis, or category labels in the final prompt. Never invent unclear details. ${focus}`.trim(),
+	},
+];
+
 function loadUsage(): UsageRecord {
 	const today = new Date().toISOString().slice(0, 10);
 	const saved = JSON.parse(localStorage.getItem(USAGE_STORAGE_KEY) || "null") as UsageRecord | null;
@@ -125,6 +194,7 @@ export function ImageCloud({ onBackToDashboard, embedded = false }: { onBackToDa
 	const [categorySuggestions, setCategorySuggestions] = useState<string[]>([]);
 	const [model, setModel] = useState<(typeof MODEL_OPTIONS)[number]>(MODEL_OPTIONS[1]);
 	const [promptFocus, setPromptFocus] = useState<PromptFocus>("full");
+	const [instruction, setInstruction] = useState("default");
 	const [result, setResult] = useState("");
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState("");
@@ -135,9 +205,16 @@ export function ImageCloud({ onBackToDashboard, embedded = false }: { onBackToDa
 	const [batchResults, setBatchResults] = useState<BatchResult[]>([]);
 	const [batchProcessing, setBatchProcessing] = useState(false);
 
+	const instructionPresets = createImagePromptInstructions();
+
+	const getInstructionText = () => {
+		const selectedPreset = instructionPresets.find((p) => p.value === instruction) || instructionPresets[0];
+		return selectedPreset.text(focusInstructions[promptFocus]);
+	};
+
 	const generatedPromptText = useMemo(() => {
-		return `Create a highly detailed photorealistic image matching the reference image as closely as possible. Preserve the visible clothing, accessories, hairstyle, pose, facial expression, gaze, body orientation, environment, background elements, colors, textures, and composition without inventing unclear details. Capture the subject with a professional full-frame camera using a natural viewpoint and appropriate distance, with realistic optical compression, realistic depth of field, smooth natural blur, precise focus on the subject, fine skin and fabric texture, realistic hair strands, accurate material rendering, subtle natural shadows, balanced exposure, soft directional lighting, true-to-life colors, high dynamic range, realistic contrast, and a polished professional photography aesthetic. ${focusInstructions[promptFocus]} Keep the final response to one natural paragraph, concise but highly specific, and do not include extra analysis or labels.`;
-	}, [promptFocus]);
+		return getInstructionText();
+	}, [promptFocus, instruction]);
 
 	useEffect(() => {
 		loadCategorySuggestions()
@@ -524,6 +601,13 @@ export function ImageCloud({ onBackToDashboard, embedded = false }: { onBackToDa
 								<option key={suggestion} value={suggestion} />
 							))}
 						</datalist>
+
+						<label className="field-label" htmlFor="instruction">Instruction</label>
+						<select id="instruction" value={instruction} onChange={(event) => setInstruction(event.currentTarget.value)}>
+							{instructionPresets.map((preset) => (
+								<option key={preset.value} value={preset.value}>{preset.label}</option>
+							))}
+						</select>
 
 						<label className="field-label" htmlFor="promptFocus">Prompt focus</label>
 						<select id="promptFocus" value={promptFocus} onChange={(event) => setPromptFocus(event.currentTarget.value as PromptFocus)}>
