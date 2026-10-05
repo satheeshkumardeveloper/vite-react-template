@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 
 function AppContent() {
 	const { isAuthenticated } = useAuth();
-	const [activeView, setActiveView] = useState<"dashboard" | "image-prompt" | "image-cloud">("dashboard");
+	const [activeView, setActiveView] = useState<"dashboard" | "image-prompt" | "image-cloud" | "history">("dashboard");
 
 	useEffect(() => {
 		if (!isAuthenticated) {

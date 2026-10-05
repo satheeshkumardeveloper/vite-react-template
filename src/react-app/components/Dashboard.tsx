@@ -1,6 +1,7 @@
 import { useAuth } from "../context/AuthContext";
 import { ImageCloud } from "./ImageCloud";
 import { ImagePrompt } from "./ImagePrompt";
+import { ImagePromptHistory } from "./ImagePromptHistory";
 import "../styles/Dashboard.css";
 
 const navSections = [
@@ -31,8 +32,8 @@ const navSections = [
 ];
 
 type DashboardProps = {
-	activeView: "dashboard" | "image-prompt" | "image-cloud";
-	onNavigate: (view: "dashboard" | "image-prompt" | "image-cloud") => void;
+	activeView: "dashboard" | "image-prompt" | "image-cloud" | "history";
+	onNavigate: (view: "dashboard" | "image-prompt" | "image-cloud" | "history") => void;
 };
 
 export function Dashboard({ activeView, onNavigate }: DashboardProps) {
@@ -74,6 +75,13 @@ export function Dashboard({ activeView, onNavigate }: DashboardProps) {
 						onClick={() => onNavigate("image-cloud")}
 					>
 						<span>Image Cloud</span>
+					</button>
+					<button
+						type="button"
+						className={activeView === "history" ? "nav-item nav-item--active" : "nav-item"}
+						onClick={() => onNavigate("history")}
+					>
+						<span>History</span>
 					</button>
 					<div className="nav-item nav-item--dropdown">
 						<button type="button" className="nav-trigger">
@@ -140,9 +148,13 @@ export function Dashboard({ activeView, onNavigate }: DashboardProps) {
 					<div className="dashboard-card dashboard-card--full">
 						<ImagePrompt embedded onBackToDashboard={() => onNavigate("dashboard")} />
 					</div>
-				) : (
+				) : activeView === "image-cloud" ? (
 					<div className="dashboard-card dashboard-card--full">
 						<ImageCloud embedded onBackToDashboard={() => onNavigate("dashboard")} />
+					</div>
+				) : (
+					<div className="dashboard-card dashboard-card--full">
+						<ImagePromptHistory onBackToDashboard={() => onNavigate("dashboard")} embedded />
 					</div>
 				)}
 			</div>
