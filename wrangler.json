@@ -15,14 +15,14 @@
 	"d1_databases": [
 		{
 			"binding": "DB",
-			"database_name": "vite_react_db",
-			"database_id": "YOUR_DATABASE_ID_HERE"
+			"database_name": "sathesh-dev",
+			"database_id": "e0bf7484-9acc-497b-a47e-18798338212c"
 		}
 	],
 	"r2_buckets": [
 		{
 			"binding": "IMAGES",
-			"bucket_name": "vite-react-images",
+			"bucket_name": "sathesh",
 			"jurisdiction": "eu"
 		}
 	]
