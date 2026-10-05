@@ -570,6 +570,7 @@ export function ImagePromptHistory({ onBackToDashboard, embedded = false }: { on
 													<img
 														src={`https://sdk.satheshdeveloper.workers.dev/api/image-prompts/image?key=${encodeURIComponent(imagePaths[0])}`}
 														alt="Reference"
+														loading="lazy"
 														style={{ width: 48, height: 48, borderRadius: 5, objectFit: "cover", border: "1px solid #2a3342" }}
 													/>
 												) : (
@@ -634,6 +635,7 @@ export function ImagePromptHistory({ onBackToDashboard, embedded = false }: { on
 													<img
 														src={`https://sdk.satheshdeveloper.workers.dev/api/image-prompts/image?key=${encodeURIComponent(imagePaths[0])}`}
 														alt="Reference"
+														loading="lazy"
 														style={{ width: "100%", height: "auto", borderRadius: 5, objectFit: "cover", border: "1px solid #2a3342" }}
 													/>
 												) : (
@@ -696,6 +698,7 @@ export function ImagePromptHistory({ onBackToDashboard, embedded = false }: { on
 													<img
 														src={`https://sdk.satheshdeveloper.workers.dev/api/image-prompts/image?key=${encodeURIComponent(imagePaths[0])}`}
 														alt="Reference"
+														loading="lazy"
 														style={{ width: "100%", height: 160, borderRadius: 8, objectFit: "cover", border: "1px solid #2a3342" }}
 													/>
 												) : (
