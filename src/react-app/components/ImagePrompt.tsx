@@ -1,13 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import "../styles/ImagePrompt.css";
 
-const GEMINI_API_KEYS = {
-	primary: import.meta.env.VITE_GEMINI_API_KEY_PRIMARY || "",
-	secondary: import.meta.env.VITE_GEMINI_API_KEY_SECONDARY || "",
-	tertiary: import.meta.env.VITE_GEMINI_API_KEY_TERTIARY || "",
-} as const;
-
-type GeminiKey = keyof typeof GEMINI_API_KEYS;
+type GeminiKey = "primary" | "secondary" | "tertiary";
 
 type PromptFocus =
 	| "full"
@@ -304,7 +298,7 @@ export function ImagePrompt({ onBackToDashboard, embedded = false }: { onBackToD
 			return;
 		}
 
-		const apiKey = GEMINI_API_KEYS[geminiKey] || GEMINI_API_KEYS.primary;
+		const selectedKey = geminiKey;
 		const files = selectedFiles;
 		setResult("");
 		setError("");
@@ -369,14 +363,18 @@ Do not add explanations before or after the prompt.`,
 			};
 
 			const request = await requestGeminiWithRetry(
-				`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${apiKey}`,
+				"/api/image-prompt-generate",
 				{
 					method: "POST",
 					headers: {
 						"Content-Type": "application/json",
 					},
 					signal: activeRequestControllerRef.current.signal,
-					body: JSON.stringify(requestBody),
+					body: JSON.stringify({
+						key: selectedKey,
+						model: MODEL,
+						requestBody,
+					}),
 				},
 			);
 
