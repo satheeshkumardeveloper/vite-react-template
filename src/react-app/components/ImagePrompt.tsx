@@ -197,6 +197,7 @@ export function ImagePrompt({ onBackToDashboard, embedded = false }: { onBackToD
 	const setSelectedImageFiles = (files: File[]) => {
 		const filtered = files.filter((file) => file.type.startsWith("image/"));
 		setSelectedFiles(filtered);
+		setImagePreviewsVisible(false);
 
 		const input = imageInputRef.current;
 		if (input) {
@@ -491,6 +492,40 @@ Do not add explanations before or after the prompt.`,
 		setError("");
 	};
 
+	const actionIconStyle = { width: 16, height: 16, display: "block" };
+
+	function PasteIcon() {
+		return (
+			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={actionIconStyle} aria-hidden="true">
+				<path d="M9 9.5V7.8A2.8 2.8 0 0 1 11.8 5h.4A2.8 2.8 0 0 1 15 7.8v1.7" />
+				<rect x="7" y="9" width="10" height="10" rx="2.2" />
+				<path d="M12 13v3" />
+				<path d="M10.5 14.5 12 13l1.5 1.5" />
+			</svg>
+		);
+	}
+
+	function EyeIcon() {
+		return (
+			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={actionIconStyle} aria-hidden="true">
+				<path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Z" />
+				<circle cx="12" cy="12" r="3" />
+			</svg>
+		);
+	}
+
+	function TrashIcon() {
+		return (
+			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={actionIconStyle} aria-hidden="true">
+				<path d="M4 7h16" />
+				<path d="M10 11v6" />
+				<path d="M14 11v6" />
+				<path d="M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12" />
+				<path d="M9 7V4.5A1.5 1.5 0 0 1 10.5 3h3A1.5 1.5 0 0 1 15 4.5V7" />
+			</svg>
+		);
+	}
+
 	return (
 		<div className={embedded ? "image-prompt-page embedded" : "image-prompt-page"}>
 			<div className={embedded ? "image-prompt-shell embedded" : "image-prompt-shell"}>
@@ -529,18 +564,21 @@ Do not add explanations before or after the prompt.`,
 								{imageCountLabel}
 							</span>
 							<div className="image-actions">
-								<button type="button" onClick={handlePasteImages}>
-									Paste
+								<button type="button" onClick={handlePasteImages} aria-label="Paste image" title="Paste image" style={{ width: "auto", margin: 0, display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "8px 10px" }}>
+									<PasteIcon />
 								</button>
-								<button type="button" onClick={handleClearImages} disabled={!selectedFiles.length}>
-									Clear
+								<button type="button" onClick={handleClearImages} disabled={!selectedFiles.length} aria-label="Clear images" title="Clear images" style={{ width: "auto", margin: 0, display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "8px 10px" }}>
+									<TrashIcon />
 								</button>
 								<button
 									type="button"
 									onClick={() => setImagePreviewsVisible((current) => !current)}
 									disabled={!selectedFiles.length}
+									aria-label={imagePreviewsVisible ? "Hide images" : "Show images"}
+									title={imagePreviewsVisible ? "Hide images" : "Show images"}
+									style={{ width: "auto", margin: 0, display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "8px 10px" }}
 								>
-									{imagePreviewsVisible ? "Hide images" : "Show images"}
+									<EyeIcon />
 								</button>
 							</div>
 						</div>

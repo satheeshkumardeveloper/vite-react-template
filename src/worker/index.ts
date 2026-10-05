@@ -151,4 +151,102 @@ app.delete("/api/image-prompts/:id", async (c) => {
 	}
 });
 
+app.post("/api/image-prompt-vision", async (c) => {
+	try {
+		const body = await c.req.json();
+		const promptText = String(body?.promptText || "").trim();
+		const imageList = Array.isArray(body?.images) ? body.images as Array<{ dataUrl?: string; url?: string }> : [];
+		const selectedModel = String(body?.model || "@cf/meta/llama-3.2-11b-vision-instruct").trim();
+		const allowedModels = [
+			"@cf/meta/llama-4-scout-17b-16e-instruct",
+			"@cf/meta/llama-3.2-11b-vision-instruct",
+			"@cf/mistralai/mistral-small-3.1-24b-instruct",
+		];
+
+		if (!allowedModels.includes(selectedModel)) {
+			return c.json({ error: "Unsupported model selected" }, 400);
+		}
+		if (!promptText) {
+			return c.json({ error: "promptText is required" }, 400);
+		}
+		if (!imageList.length) {
+			return c.json({ error: "At least one image is required" }, 400);
+		}
+
+		const messageContent = [
+			{ type: "text", text: promptText },
+			...imageList
+				.map((image: { dataUrl?: string; url?: string } | string) => {
+					const dataUrl = typeof image === "string" ? image : image?.dataUrl || image?.url || null;
+					if (!dataUrl || typeof dataUrl !== "string" || !dataUrl.startsWith("data:image/")) {
+						return null;
+					}
+					return { type: "image_url", image_url: { url: dataUrl } };
+				})
+				.filter(Boolean),
+		];
+
+		if (messageContent.length === 1) {
+			return c.json({ error: "Valid image data is required" }, 400);
+		}
+
+		const env = c.env as unknown as Record<string, string | undefined>;
+		const accountId = env.CF_ACCOUNT_ID;
+		const aiToken = env.CF_AI_API_TOKEN;
+		if (!accountId || !aiToken) {
+			return c.json({ error: "Missing Cloudflare AI credentials in Worker environment." }, 500);
+		}
+
+		const upstream = await fetch(
+			`https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${selectedModel}`,
+			{
+				method: "POST",
+				headers: {
+					Authorization: `Bearer ${aiToken}`,
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					messages: [
+						{
+							role: "user",
+							content: messageContent,
+						},
+					],
+				}),
+			},
+		);
+
+		const rawText = await upstream.text();
+		let data: any;
+		try {
+			data = JSON.parse(rawText);
+		} catch {
+			return c.json({ error: "Invalid upstream response", raw: rawText }, 502);
+		}
+
+		if (!upstream.ok || data?.success === false) {
+			return new Response(
+				JSON.stringify({
+					error: data?.errors?.[0]?.message || data?.error || "Cloudflare vision request failed",
+					raw: data,
+				}),
+				{
+					status: upstream.status || 502,
+					headers: { "content-type": "application/json;charset=UTF-8" },
+				},
+			);
+		}
+
+		const reply = String(data?.result?.response || "").trim();
+		const totalTokens = data?.result?.usage?.total_tokens ?? data?.result?.usage?.totalTokens ?? null;
+		if (!reply) {
+			return c.json({ error: "No prompt returned by Cloudflare", raw: data }, 502);
+		}
+
+		return c.json({ reply, totalTokens, raw: data });
+	} catch (error) {
+		return c.json({ error: error instanceof Error ? error.message : String(error) }, 500);
+	}
+});
+
 export default app;

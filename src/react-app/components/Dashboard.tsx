@@ -1,4 +1,5 @@
 import { useAuth } from "../context/AuthContext";
+import { ImageCloud } from "./ImageCloud";
 import { ImagePrompt } from "./ImagePrompt";
 import "../styles/Dashboard.css";
 
@@ -30,8 +31,8 @@ const navSections = [
 ];
 
 type DashboardProps = {
-	activeView: "dashboard" | "image-prompt";
-	onNavigate: (view: "dashboard" | "image-prompt") => void;
+	activeView: "dashboard" | "image-prompt" | "image-cloud";
+	onNavigate: (view: "dashboard" | "image-prompt" | "image-cloud") => void;
 };
 
 export function Dashboard({ activeView, onNavigate }: DashboardProps) {
@@ -67,6 +68,13 @@ export function Dashboard({ activeView, onNavigate }: DashboardProps) {
 					>
 						<span>Image Prompt</span>
 					</button>
+					<button
+						type="button"
+						className={activeView === "image-cloud" ? "nav-item nav-item--active" : "nav-item"}
+						onClick={() => onNavigate("image-cloud")}
+					>
+						<span>Image Cloud</span>
+					</button>
 					<div className="nav-item nav-item--dropdown">
 						<button type="button" className="nav-trigger">
 							<span>Products</span>
@@ -88,12 +96,6 @@ export function Dashboard({ activeView, onNavigate }: DashboardProps) {
 							))}
 						</div>
 					</div>
-					<button type="button" className="nav-item">
-						<span>Resources</span>
-					</button>
-					<button type="button" className="nav-item">
-						<span>Pricing</span>
-					</button>
 				</nav>
 
 				<div className="user-info">
@@ -113,6 +115,9 @@ export function Dashboard({ activeView, onNavigate }: DashboardProps) {
 				<button type="button" className="mobile-nav-button mobile-nav-button--accent" onClick={() => onNavigate("image-prompt")}>
 					Image Prompt
 				</button>
+				<button type="button" className="mobile-nav-button" onClick={() => onNavigate("image-cloud")}>
+					Image Cloud
+				</button>
 			</div>
 
 			<div className="dashboard-content">
@@ -131,9 +136,13 @@ export function Dashboard({ activeView, onNavigate }: DashboardProps) {
 							</ul>
 						</div>
 					</>
-				) : (
+				) : activeView === "image-prompt" ? (
 					<div className="dashboard-card dashboard-card--full">
 						<ImagePrompt embedded onBackToDashboard={() => onNavigate("dashboard")} />
+					</div>
+				) : (
+					<div className="dashboard-card dashboard-card--full">
+						<ImageCloud embedded onBackToDashboard={() => onNavigate("dashboard")} />
 					</div>
 				)}
 			</div>
