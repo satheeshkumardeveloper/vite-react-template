@@ -151,6 +151,35 @@ app.delete("/api/image-prompts/:id", async (c) => {
 	}
 });
 
+// GET image from R2 bucket
+app.get("/api/image-prompts/image", async (c) => {
+	try {
+		const r2 = c.env.IMAGES as R2Bucket;
+		if (!r2) {
+			return c.json({ error: "R2 binding IMAGES is missing in Worker environment." }, 500);
+		}
+
+		const key = c.req.query("key");
+		if (!key || !key.startsWith("IMAGE-PROMPT/")) {
+			return c.json({ error: "Invalid image key" }, 400);
+		}
+
+		const object = await r2.get(key);
+		if (!object) {
+			return c.text("Not found", 404);
+		}
+
+		return new Response(object.body, {
+			headers: {
+				"content-type": object.httpMetadata?.contentType || "application/octet-stream",
+				"cache-control": "public, max-age=31536000, immutable",
+			},
+		});
+	} catch (error) {
+		return c.json({ error: error instanceof Error ? error.message : String(error) }, 500);
+	}
+});
+
 app.post("/api/image-prompt-vision", async (c) => {
 	try {
 		const body = await c.req.json();
