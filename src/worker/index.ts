@@ -9,12 +9,11 @@ app.post("/api/image-prompt-generate", async (c) => {
 		const selectedKey = String(body?.key || "primary").toLowerCase() as "primary" | "secondary" | "tertiary";
 		const requestBody = body?.requestBody || body;
 		const model = String(body?.model || "gemini-3.6-flash");
-		const env = c.env as Record<string, string | undefined>;
 
 		const apiKeyMap = {
-			primary: env.GEMINI_API_KEY_PRIMARY,
-			secondary: env.GEMINI_API_KEY_SECONDARY,
-			tertiary: env.GEMINI_API_KEY_TERTIARY,
+			primary: c.env.GEMINI_API_KEY_PRIMARY,
+			secondary: c.env.GEMINI_API_KEY_SECONDARY,
+			tertiary: c.env.GEMINI_API_KEY_TERTIARY,
 		};
 
 		const apiKey = apiKeyMap[selectedKey] || apiKeyMap.primary;
