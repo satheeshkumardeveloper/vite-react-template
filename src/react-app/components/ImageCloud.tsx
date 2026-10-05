@@ -15,6 +15,14 @@ type PromptFocus =
 	| "colors"
 	| "style";
 
+type BatchResult = {
+	fileIndex: number;
+	fileName: string;
+	status: "pending" | "processing" | "done" | "error";
+	result: string;
+	error?: string;
+};
+
 type UsageRecord = {
 	date: string;
 	requests: number;
@@ -123,6 +131,9 @@ export function ImageCloud({ onBackToDashboard, embedded = false }: { onBackToDa
 	const [progressValue, setProgressValue] = useState(0);
 	const [progressMessage, setProgressMessage] = useState("Preparing request...");
 	const [copyLabel, setCopyLabel] = useState("Copy");
+	const [batchMode, setBatchMode] = useState(false);
+	const [batchResults, setBatchResults] = useState<BatchResult[]>([]);
+	const [batchProcessing, setBatchProcessing] = useState(false);
 
 	const generatedPromptText = useMemo(() => {
 		return `Create a highly detailed photorealistic image matching the reference image as closely as possible. Preserve the visible clothing, accessories, hairstyle, pose, facial expression, gaze, body orientation, environment, background elements, colors, textures, and composition without inventing unclear details. Capture the subject with a professional full-frame camera using a natural viewpoint and appropriate distance, with realistic optical compression, realistic depth of field, smooth natural blur, precise focus on the subject, fine skin and fabric texture, realistic hair strands, accurate material rendering, subtle natural shadows, balanced exposure, soft directional lighting, true-to-life colors, high dynamic range, realistic contrast, and a polished professional photography aesthetic. ${focusInstructions[promptFocus]} Keep the final response to one natural paragraph, concise but highly specific, and do not include extra analysis or labels.`;
@@ -192,6 +203,87 @@ export function ImageCloud({ onBackToDashboard, embedded = false }: { onBackToDa
 		}
 		setCopyLabel("Copied");
 		window.setTimeout(() => setCopyLabel("Copy"), 1600);
+	};
+
+	const handleBatchProcess = async () => {
+		if (!selectedFiles.length) {
+			setError("Please select at least one image.");
+			return;
+		}
+
+		setError("");
+		setBatchResults(
+			selectedFiles.map((file, idx) => ({
+				fileIndex: idx,
+				fileName: file.name,
+				status: "pending" as const,
+				result: "",
+			})),
+		);
+		setBatchProcessing(true);
+
+		for (let i = 0; i < selectedFiles.length; i++) {
+			setBatchResults((current) =>
+				current.map((r) => (r.fileIndex === i ? { ...r, status: "processing" as const } : r)),
+			);
+
+			try {
+				const dataUrl = await fileToDataUrl(selectedFiles[i]);
+				const response = await fetch("/api/image-prompt-vision", {
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+					},
+					body: JSON.stringify({
+						model,
+						promptText: `${generatedPromptText} ${category.trim() ? `Category: ${category.trim()}.` : ""}`,
+						images: [{ dataUrl }],
+					}),
+				});
+
+				const data = await readResponseJson(response);
+				if (!response.ok) {
+					throw new Error(data?.error || "Cloudflare vision request failed");
+				}
+
+				const reply = typeof data?.reply === "string" ? data.reply.trim() : "";
+				if (!reply) {
+					throw new Error("No prompt returned");
+				}
+
+				setBatchResults((current) =>
+					current.map((r) =>
+						r.fileIndex === i ? { ...r, status: "done" as const, result: reply } : r,
+					),
+				);
+
+				if (!privateMode) {
+					await saveGeneratedPrompt(reply, category, [selectedFiles[i]]);
+				}
+
+				if (i < selectedFiles.length - 1) {
+					await new Promise((resolve) => setTimeout(resolve, 2000));
+				}
+			} catch (err) {
+				const message = err instanceof Error ? err.message : "Unknown error";
+				setBatchResults((current) =>
+					current.map((r) =>
+						r.fileIndex === i
+							? { ...r, status: "error" as const, error: message }
+							: r,
+					),
+				);
+			}
+		}
+
+		setBatchProcessing(false);
+		if (!privateMode) {
+			try {
+				setCategorySuggestions(await loadCategorySuggestions());
+			} catch {
+				console.error("Failed to refresh categories");
+			}
+		}
 	};
 
 	const handleGenerate = async () => {
@@ -446,20 +538,116 @@ export function ImageCloud({ onBackToDashboard, embedded = false }: { onBackToDa
 							<input id="privateMode" type="checkbox" role="switch" checked={privateMode} onChange={(event) => setPrivateMode(event.currentTarget.checked)} />
 						</label>
 
-						<button type="button" onClick={handleGenerate} disabled={loading}>
-							{loading ? "Generating..." : "Generate AI Prompt"}
-						</button>
+					<label className="private-mode-control" htmlFor="batchMode">
+						<span>Batch process</span>
+						<input id="batchMode" type="checkbox" role="switch" checked={batchMode} onChange={(event) => setBatchMode(event.currentTarget.checked)} disabled={batchProcessing} />
+					</label>
 
-						{loading ? (
-							<div className="loading" aria-live="polite">
-								Analyzing image...
-								<div className="progress-track" role="progressbar" aria-label="Image analysis progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progressValue}>
-									<div className="progress-bar" style={{ width: `${progressValue}%` }} />
-								</div>
-								<span className="progress-status">{progressMessage} {Math.round(progressValue)}%</span>
+					<button type="button" onClick={batchMode ? handleBatchProcess : handleGenerate} disabled={loading || batchProcessing}>
+						{loading ? "Generating..." : batchProcessing ? "Processing batch..." : batchMode ? "Batch Process" : "Generate AI Prompt"}
+					</button>
+
+					{batchMode && batchResults.length > 0 && (
+						<div style={{ marginTop: "20px", overflowX: "auto" }}>
+							<h3 style={{ marginBottom: "12px", fontSize: "0.95rem", color: "#f2f5f8" }}>Batch Results</h3>
+							<table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem" }}>
+								<thead>
+									<tr style={{ borderBottom: "1px solid #2a3342", backgroundColor: "#0d1118" }}>
+										<th style={{ textAlign: "left", padding: "10px", color: "#8f9aaa", fontWeight: 600, textTransform: "uppercase" }}>Index</th>
+										<th style={{ textAlign: "left", padding: "10px", color: "#8f9aaa", fontWeight: 600, textTransform: "uppercase" }}>Image</th>
+										<th style={{ textAlign: "left", padding: "10px", color: "#8f9aaa", fontWeight: 600, textTransform: "uppercase" }}>Status</th>
+										<th style={{ textAlign: "left", padding: "10px", color: "#8f9aaa", fontWeight: 600, textTransform: "uppercase" }}>Action</th>
+									</tr>
+								</thead>
+								<tbody>
+									{batchResults.map((result) => (
+										<tr key={result.fileIndex} style={{ borderBottom: "1px solid #2a3342" }}>
+											<td style={{ padding: "10px", color: "#f2f5f8" }}>{result.fileIndex + 1}</td>
+											<td style={{ padding: "10px", color: "#f2f5f8", maxWidth: "200px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={result.fileName}>
+												{result.fileName}
+											</td>
+											<td style={{ padding: "10px" }}>
+												<span
+													style={{
+														padding: "4px 8px",
+														borderRadius: "4px",
+														fontSize: "0.75rem",
+														fontWeight: 600,
+														backgroundColor:
+															result.status === "done"
+																? "#1a3a2a"
+																: result.status === "error"
+																	? "#3a1a2a"
+																	: result.status === "processing"
+																		? "#2a3a1a"
+																		: "#1a1a2a",
+														color:
+															result.status === "done"
+																? "#78e6c0"
+																: result.status === "error"
+																	? "#ff8d9b"
+																	: result.status === "processing"
+																		? "#b8e6b8"
+																		: "#8f9aaa",
+													}}
+												>
+													{result.status === "done" ? "✓ Done" : result.status === "error" ? "✕ Error" : result.status === "processing" ? "⟳ Processing" : "○ Pending"}
+												</span>
+											</td>
+											<td style={{ padding: "10px" }}>
+												{result.status === "done" && result.result && (
+													<button
+														type="button"
+														onClick={async () => {
+															try {
+																await navigator.clipboard.writeText(result.result);
+															} catch {
+																const textarea = document.createElement("textarea");
+																textarea.value = result.result;
+																document.body.appendChild(textarea);
+																textarea.select();
+																document.execCommand("copy");
+																document.body.removeChild(textarea);
+															}
+														}}
+														style={{
+															background: "#78e6c0",
+															border: 0,
+															borderRadius: "4px",
+															color: "#082019",
+															cursor: "pointer",
+															padding: "4px 8px",
+															fontSize: "0.75rem",
+															fontWeight: 600,
+														}}
+														title="Copy result"
+													>
+														📋
+													</button>
+												)}
+												{result.status === "error" && (
+													<span style={{ color: "#ff8d9b", fontSize: "0.75rem" }} title={result.error}>
+														{result.error?.slice(0, 20)}...
+													</span>
+												)}
+											</td>
+										</tr>
+									))}
+								</tbody>
+							</table>
+						</div>
+					)}
+
+					{loading ? (
+						<div className="loading" aria-live="polite">
+							Analyzing image...
+							<div className="progress-track" role="progressbar" aria-label="Image analysis progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progressValue}>
+								<div className="progress-bar" style={{ width: `${progressValue}%` }} />
 							</div>
-						) : null}
-						<div className="error" aria-live="polite">{error}</div>
+							<span className="progress-status">{progressMessage} {Math.round(progressValue)}%</span>
+						</div>
+					) : null}
+					<div className="error" aria-live="polite">{error}</div>
 					</section>
 
 					<section className="panel" onPaste={onPasteFromKeyboard}>
