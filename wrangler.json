@@ -22,8 +22,7 @@
 	"r2_buckets": [
 		{
 			"binding": "IMAGES",
-			"bucket_name": "sathesh",
-			"jurisdiction": "eu"
+			"bucket_name": "sathesh"
 		}
 	]
 }
