@@ -241,6 +241,8 @@
 
 .mobile-nav {
 	display: none;
+	gap: 10px;
+	flex-direction: column;
 }
 
 .dashboard-content {
@@ -377,6 +379,11 @@
 		border-radius: 12px;
 		font-weight: 600;
 		font-family: 'Ubuntu', sans-serif;
+	}
+
+	.mobile-nav-button--accent {
+		background: rgba(99, 102, 241, 0.18);
+		border-color: rgba(99, 102, 241, 0.35);
 	}
 
 	.user-info {

@@ -3,10 +3,23 @@
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { Login } from "./components/Login";
 import { Dashboard } from "./components/Dashboard";
+import { useEffect, useState } from "react";
 
 function AppContent() {
 	const { isAuthenticated } = useAuth();
-	return isAuthenticated ? <Dashboard /> : <Login />;
+	const [activeView, setActiveView] = useState<"dashboard" | "image-prompt">("dashboard");
+
+	useEffect(() => {
+		if (!isAuthenticated) {
+			setActiveView("dashboard");
+		}
+	}, [isAuthenticated]);
+
+	if (!isAuthenticated) {
+		return <Login />;
+	}
+
+	return <Dashboard activeView={activeView} onNavigate={setActiveView} />;
 }
 
 function App() {

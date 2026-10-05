@@ -1,4 +1,5 @@
 import { useAuth } from "../context/AuthContext";
+import { ImagePrompt } from "./ImagePrompt";
 import "../styles/Dashboard.css";
 
 const navSections = [
@@ -28,7 +29,12 @@ const navSections = [
 	},
 ];
 
-export function Dashboard() {
+type DashboardProps = {
+	activeView: "dashboard" | "image-prompt";
+	onNavigate: (view: "dashboard" | "image-prompt") => void;
+};
+
+export function Dashboard({ activeView, onNavigate }: DashboardProps) {
 	const { logout, username } = useAuth();
 
 	const handleLogout = () => {
@@ -47,8 +53,19 @@ export function Dashboard() {
 				</div>
 
 				<nav className="mega-menu" aria-label="Main navigation">
-					<button type="button" className="nav-item nav-item--active">
+					<button
+						type="button"
+						className={activeView === "dashboard" ? "nav-item nav-item--active" : "nav-item"}
+						onClick={() => onNavigate("dashboard")}
+					>
 						<span>Home</span>
+					</button>
+					<button
+						type="button"
+						className={activeView === "image-prompt" ? "nav-item nav-item--active" : "nav-item"}
+						onClick={() => onNavigate("image-prompt")}
+					>
+						<span>Image Prompt</span>
 					</button>
 					<div className="nav-item nav-item--dropdown">
 						<button type="button" className="nav-trigger">
@@ -90,24 +107,35 @@ export function Dashboard() {
 			</header>
 
 			<div className="mobile-nav" aria-label="Mobile navigation">
-				<button type="button" className="mobile-nav-button">
+				<button type="button" className="mobile-nav-button" onClick={() => onNavigate("dashboard")}>
 					Menu
+				</button>
+				<button type="button" className="mobile-nav-button mobile-nav-button--accent" onClick={() => onNavigate("image-prompt")}>
+					Image Prompt
 				</button>
 			</div>
 
 			<div className="dashboard-content">
-				<div className="dashboard-card">
-					<h2>Dashboard Content</h2>
-					<p>You are now logged in and can access the dashboard.</p>
-				</div>
-				<div className="dashboard-card">
-					<h2>Features</h2>
-					<ul>
-						<li>Secure authentication</li>
-						<li>Session management</li>
-						<li>Easy logout</li>
-					</ul>
-				</div>
+				{activeView === "dashboard" ? (
+					<>
+						<div className="dashboard-card">
+							<h2>Dashboard Content</h2>
+							<p>You are now logged in and can access the dashboard.</p>
+						</div>
+						<div className="dashboard-card">
+							<h2>Features</h2>
+							<ul>
+								<li>Secure authentication</li>
+								<li>Session management</li>
+								<li>Easy logout</li>
+							</ul>
+						</div>
+					</>
+				) : (
+					<div className="dashboard-card dashboard-card--full">
+						<ImagePrompt embedded onBackToDashboard={() => onNavigate("dashboard")} />
+					</div>
+				)}
 			</div>
 		</div>
 	);
