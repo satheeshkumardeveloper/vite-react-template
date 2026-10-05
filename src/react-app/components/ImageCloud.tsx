@@ -470,7 +470,22 @@ export function ImageCloud({ onBackToDashboard, embedded = false }: { onBackToDa
 					) : null}
 				</div>
 
-				<div className="workspace">
+<div className="workspace" onPaste={(e: React.ClipboardEvent) => {
+				const items = Array.from(e.clipboardData?.items || []);
+				const pastedImages = items
+					.filter((item) => (item as DataTransferItem).type.startsWith("image/"))
+					.map((item) => (item as DataTransferItem).getAsFile())
+						.filter((file): file is File => Boolean(file));
+
+					if (!pastedImages.length) {
+						return;
+					}
+
+					e.preventDefault();
+					setSelectedFiles((current) => [...current, ...pastedImages]);
+					setImagePreviewsVisible(false);
+					setError(`${pastedImages.length} image${pastedImages.length === 1 ? "" : "s"} pasted from clipboard.`);
+				}}>
 					<section className="panel">
 						<h2>Reference image</h2>
 						<label className="dropzone" htmlFor="imageInput">

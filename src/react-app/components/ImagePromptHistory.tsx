@@ -245,7 +245,27 @@ export function ImagePromptHistory({ onBackToDashboard, embedded = false }: { on
 	const [viewMultiplePrompts, setViewMultiplePrompts] = useState(false);
 	const [recordsPerPage, setRecordsPerPage] = useState(15);
 	const [showSelectionScopeDialog, setShowSelectionScopeDialog] = useState(false);
+	const [isRefreshing, setIsRefreshing] = useState(false);
 	const imageInputRef = useRef<HTMLInputElement>(null);
+
+	const handleRefresh = async () => {
+		if (isRefreshing) return;
+		setIsRefreshing(true);
+		try {
+			if (IS_LOCAL) {
+				setSavedPrompts(DUMMY_PROMPTS);
+			} else {
+				const prompts = await loadSavedPrompts();
+				setSavedPrompts(prompts);
+			}
+			setCurrentPage(1);
+		} catch (refreshError) {
+			console.error("Failed to refresh data:", refreshError);
+			// Don't show error for auto-refresh to avoid cluttering UI
+		} finally {
+			setIsRefreshing(false);
+		}
+	};
 
 	useEffect(() => {
 		// Detect if mobile
@@ -271,6 +291,15 @@ export function ImagePromptHistory({ onBackToDashboard, embedded = false }: { on
 				})
 				.finally(() => setLoading(false));
 		}
+	}, []);
+
+	useEffect(() => {
+		// Auto-refresh every 5 seconds
+		const refreshInterval = setInterval(() => {
+			handleRefresh();
+		}, 5000);
+
+		return () => clearInterval(refreshInterval);
 	}, []);
 
 	const handleSelectAll = (checked: boolean) => {
@@ -780,7 +809,18 @@ export function ImagePromptHistory({ onBackToDashboard, embedded = false }: { on
 						</div>
 					</section>
 				) : (
-					<div className="workspace" style={{ gridTemplateColumns: "1fr" }}>
+					<div className="workspace" style={{ gridTemplateColumns: "1fr" }} onPaste={(e: React.ClipboardEvent) => {
+						const items = Array.from(e.clipboardData?.items || []);
+						const pastedImages = items
+							.filter((item) => (item as DataTransferItem).type.startsWith("image/"))
+							.map((item) => (item as DataTransferItem).getAsFile())
+							.filter((file): file is File => Boolean(file));
+						if (!pastedImages.length) return;
+						e.preventDefault();
+						setManualImages((current) => [...current, ...pastedImages]);
+						setShowAddModal(true);
+						setError(`${pastedImages.length} image${pastedImages.length === 1 ? "" : "s"} pasted from clipboard. Added to save modal.`);
+					}}>
 						<section className="panel" style={{ gridColumn: "1 / -1" }}>
 							{/* History Controls */}
 							<div style={{ display: "flex", gap: "14px", justifyContent: "space-between", marginBottom: "14px", flexWrap: "wrap", alignItems: "center" }}>
@@ -950,6 +990,31 @@ export function ImagePromptHistory({ onBackToDashboard, embedded = false }: { on
 										}}
 									>
 										🗑
+									</button>
+									<button
+										type="button"
+										onClick={handleRefresh}
+										disabled={isRefreshing}
+										title="Refresh table (auto-refreshes every 5 sec)"
+										aria-label="Refresh table"
+										style={{
+											background: isRefreshing ? "#435063" : "#252d3a",
+											border: "1px solid #2a3342",
+											borderRadius: "8px",
+											color: "#f2f5f8",
+											cursor: "pointer",
+											font: "inherit",
+											padding: "9px 12px",
+											width: "38px",
+											height: "38px",
+											display: "flex",
+											alignItems: "center",
+											justifyContent: "center",
+											transition: "transform 0.3s ease",
+											transform: isRefreshing ? "rotate(180deg)" : "rotate(0deg)",
+										}}
+									>
+										🔄
 									</button>
 								</div>
 							</div>
