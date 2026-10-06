@@ -164,8 +164,9 @@ async function readResponseJson(response: Response) {
 	}
 }
 
-async function loadSavedPrompts() {
-	const response = await fetch("/api/image-prompts");
+async function loadSavedPrompts(category = "") {
+	const url = category ? `/api/image-prompts?category=${encodeURIComponent(category)}` : "/api/image-prompts";
+	const response = await fetch(url);
 	const records = await readResponseJson(response);
 
 	if (!response.ok) {
@@ -247,17 +248,24 @@ export function ImagePromptHistory({ onBackToDashboard, embedded = false }: { on
 	const [isRefreshing, setIsRefreshing] = useState(false);
 	const imageInputRef = useRef<HTMLInputElement>(null);
 
+	const refreshPromptList = async (category = filterCategory) => {
+		if (IS_LOCAL) {
+			const prompts = category ? DUMMY_PROMPTS.filter((p) => p.category === category) : DUMMY_PROMPTS;
+			setSavedPrompts(prompts);
+			setCurrentPage(1);
+			return;
+		}
+
+		const prompts = await loadSavedPrompts(category);
+		setSavedPrompts(prompts);
+		setCurrentPage(1);
+	};
+
 	const handleRefresh = async () => {
 		if (isRefreshing) return;
 		setIsRefreshing(true);
 		try {
-			if (IS_LOCAL) {
-				setSavedPrompts(DUMMY_PROMPTS);
-			} else {
-				const prompts = await loadSavedPrompts();
-				setSavedPrompts(prompts);
-			}
-			setCurrentPage(1);
+			await refreshPromptList(filterCategory);
 		} catch (refreshError) {
 			console.error("Failed to refresh data:", refreshError);
 			// Don't show error for auto-refresh to avoid cluttering UI
@@ -354,6 +362,7 @@ export function ImagePromptHistory({ onBackToDashboard, embedded = false }: { on
 				// Update category suggestions
 				const newCategories = [...new Set([...categorySuggestions, manualCategory].filter(Boolean))];
 				setCategorySuggestions(newCategories);
+				await refreshPromptList(filterCategory);
 			} else {
 				// Production: save to API with images
 				const result = await saveSavedPrompt(manualPrompt, manualCategory, manualImages);
@@ -365,7 +374,9 @@ export function ImagePromptHistory({ onBackToDashboard, embedded = false }: { on
 				setError("");
 				setShowAddModal(false);
 
-				loadCategorySuggestions().then(setCategorySuggestions);
+				const [prompts, categories] = await Promise.all([loadSavedPrompts(filterCategory), loadCategorySuggestions()]);
+				setSavedPrompts(prompts);
+				setCategorySuggestions(categories);
 			}
 		} catch (saveError) {
 			setError(saveError instanceof Error ? saveError.message : "Failed to save prompt");
@@ -406,6 +417,9 @@ export function ImagePromptHistory({ onBackToDashboard, embedded = false }: { on
 				setSelectedIds(new Set());
 			}
 			setError("");
+			await refreshPromptList(filterCategory);
+			const categories = await loadCategorySuggestions();
+			setCategorySuggestions(categories);
 		} catch (deleteError) {
 			setError(deleteError instanceof Error ? deleteError.message : "Failed to delete");
 		} finally {
@@ -641,9 +655,12 @@ export function ImagePromptHistory({ onBackToDashboard, embedded = false }: { on
 									<select
 										id="filter-category"
 										value={filterCategory}
-										onChange={(e) => {
-											setFilterCategory(e.currentTarget.value);
+										onChange={async (e) => {
+											const nextCategory = e.currentTarget.value;
+											setFilterCategory(nextCategory);
 											setCurrentPage(1);
+											setSelectedIds(new Set());
+											await refreshPromptList(nextCategory);
 										}}
 										style={{
 											background: "#191e29",
