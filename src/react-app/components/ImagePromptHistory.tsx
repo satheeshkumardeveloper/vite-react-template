@@ -9,7 +9,7 @@ type SavedPrompt = {
 	created_at: string;
 };
 
-type ViewMode = "table" | "vertical" | "grid";
+type ViewMode = "table" | "grid";
 
 const IS_LOCAL = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
 
@@ -270,7 +270,7 @@ export function ImagePromptHistory({ onBackToDashboard, embedded = false }: { on
 	useEffect(() => {
 		// Detect if mobile
 		const isMobile = window.matchMedia("(max-width: 720px)").matches;
-		setViewMode(isMobile ? "vertical" : "table");
+		setViewMode(isMobile ? "grid" : "table");
 
 		if (IS_LOCAL) {
 			// Using dummy data for local testing
@@ -291,15 +291,6 @@ export function ImagePromptHistory({ onBackToDashboard, embedded = false }: { on
 				})
 				.finally(() => setLoading(false));
 		}
-	}, []);
-
-	useEffect(() => {
-		// Auto-refresh every 5 seconds
-		const refreshInterval = setInterval(() => {
-			handleRefresh();
-		}, 5000);
-
-		return () => clearInterval(refreshInterval);
 	}, []);
 
 	const handleSelectAll = (checked: boolean) => {
@@ -466,18 +457,18 @@ export function ImagePromptHistory({ onBackToDashboard, embedded = false }: { on
 	};
 
 	const toggleViewMode = () => {
-		const modes: ViewMode[] = ["table", "vertical", "grid"];
+		const modes: ViewMode[] = ["table", "grid"];
 		const currentIdx = modes.indexOf(viewMode);
 		setViewMode(modes[(currentIdx + 1) % modes.length]);
 	};
 
 	const getViewToggleLabel = () => {
-		const next = { table: "vertical", vertical: "grid", grid: "table" }[viewMode];
+		const next = { table: "grid", grid: "table" }[viewMode];
 		return `Switch to ${next} view`;
 	};
 
 	const getViewToggleIcon = () => {
-		return { table: "↕", vertical: "⬜", grid: "↔" }[viewMode];
+		return { table: "☷", grid: "☰" }[viewMode];
 	};
 
 	const promptAsSingleSentence = (prompt: string) => {
@@ -524,269 +515,91 @@ export function ImagePromptHistory({ onBackToDashboard, embedded = false }: { on
 		}
 	};
 
-	const renderTable = () => (
-		<div style={{ overflowX: viewMode === "table" ? "auto" : "visible" }}>
-			<table style={{ width: "100%", borderCollapse: "collapse", ...(viewMode === "table" && { minWidth: "600px" }) }}>
-				<thead>
-					<tr style={{ borderBottom: "1px solid #2a3342", backgroundColor: viewMode === "table" ? "#0d1118" : "transparent" }}>
-						<th style={{ textAlign: "left", padding: "12px 10px", color: "#8f9aaa", fontSize: "0.75rem", fontWeight: 600, textTransform: "uppercase" }}>
-							<input
-								type="checkbox"
-								style={{ accentColor: "#78e6c0" }}
-								onChange={(e) => handleSelectAll(e.currentTarget.checked)}
-								checked={pagedPrompts.length > 0 && pagedPrompts.every((p) => selectedIds.has(p.id))}
-								aria-label="Select all prompts"
-							/>
-						</th>
-						{viewMode === "table" && (
-							<>
+	const renderTable = () => {
+		if (viewMode === "table") {
+			return (
+				<div style={{ overflowX: "auto", width: "100%" }}>
+					<table style={{ width: "100%", minWidth: "760px", borderCollapse: "collapse" }}>
+						<thead>
+							<tr style={{ borderBottom: "1px solid #2a3342", backgroundColor: "#0d1118" }}>
+								<th style={{ textAlign: "left", padding: "12px 10px", color: "#8f9aaa", fontSize: "0.75rem", fontWeight: 600, textTransform: "uppercase", width: 40 }}>
+									<input type="checkbox" style={{ accentColor: "#78e6c0" }} onChange={(e) => handleSelectAll(e.currentTarget.checked)} checked={pagedPrompts.length > 0 && pagedPrompts.every((p) => selectedIds.has(p.id))} aria-label="Select all prompts" />
+								</th>
 								<th style={{ textAlign: "left", padding: "12px 10px", color: "#8f9aaa", fontSize: "0.75rem", fontWeight: 600, textTransform: "uppercase" }}>Image</th>
 								<th style={{ textAlign: "left", padding: "12px 10px", color: "#8f9aaa", fontSize: "0.75rem", fontWeight: 600, textTransform: "uppercase" }}>Prompt</th>
 								<th style={{ textAlign: "left", padding: "12px 10px", color: "#8f9aaa", fontSize: "0.75rem", fontWeight: 600, textTransform: "uppercase" }}>Category</th>
 								<th style={{ textAlign: "left", padding: "12px 10px", color: "#8f9aaa", fontSize: "0.75rem", fontWeight: 600, textTransform: "uppercase" }}>Created</th>
 								<th style={{ textAlign: "left", padding: "12px 10px", color: "#8f9aaa", fontSize: "0.75rem", fontWeight: 600, textTransform: "uppercase" }}>Actions</th>
-							</>
-						)}
-					</tr>
-				</thead>
-				<tbody>
+							</tr>
+						</thead>
+						<tbody>
+							{pagedPrompts.length === 0 ? (
+								<tr>
+									<td colSpan={6} style={{ textAlign: "center", padding: "24px", color: "#8f9aaa" }}>{filterCategory ? "No prompts found for this category." : "No saved prompts yet."}</td>
+								</tr>
+							) : (
+								pagedPrompts.map((prompt) => {
+									const imagePaths = imagePathsForRecord(prompt.image_path);
+									return (
+										<tr key={prompt.id} style={{ borderBottom: "1px solid #2a3342", transition: "background 160ms ease" }} onMouseEnter={(e) => (e.currentTarget.style.background = "#0d1118")} onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}> 
+											<td style={{ padding: "12px 10px", width: 40 }}><input type="checkbox" checked={selectedIds.has(prompt.id)} onChange={(e) => handleSelectPrompt(prompt.id, e.currentTarget.checked)} style={{ accentColor: "#78e6c0" }} aria-label={`Select prompt ${prompt.id}`} /></td>
+											<td style={{ padding: "12px 10px", width: 72 }}>{imagePaths[0] ? <img src={`https://sdk.satheshdeveloper.workers.dev/api/image-prompts/image?key=${encodeURIComponent(imagePaths[0])}`} alt="Reference" loading="lazy" style={{ width: 56, height: 56, borderRadius: 8, objectFit: "cover", border: "1px solid #2a3342" }} /> : <div style={{ width: 56, height: 56, borderRadius: 8, background: "#202a36", border: "1px solid #2a3342", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.7rem", color: "#8f9aaa" }}>No image</div>}</td>
+											<td style={{ padding: "12px 10px", color: "#f2f5f8", fontSize: "0.85rem", maxWidth: "520px" }}><span style={{ display: "inline-block", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={prompt.prompt}>{prompt.prompt}</span></td>
+											<td style={{ padding: "12px 10px", color: "#f2f5f8", fontSize: "0.85rem" }}><span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "inline-block", maxWidth: "110px" }}>{prompt.category || "—"}</span></td>
+											<td style={{ padding: "12px 10px", color: "#8f9aaa", fontSize: "0.85rem", whiteSpace: "nowrap" }}>{new Date(`${prompt.created_at}Z`).toLocaleDateString()}</td>
+											<td style={{ padding: "12px 10px", display: "flex", gap: 6 }}>
+												<button type="button" className="copy-btn" onClick={() => setViewPrompt(prompt)} style={{ fontSize: "0.75rem", padding: "6px 8px", whiteSpace: "nowrap" }} title="View full prompt" aria-label="View full prompt">👁</button>
+												<button type="button" className="copy-btn" onClick={() => copyPrompt(prompt.prompt)} style={{ fontSize: "0.75rem", padding: "6px 8px", whiteSpace: "nowrap" }} title="Copy prompt" aria-label="Copy prompt">📋</button>
+												<button type="button" className="copy-btn" onClick={() => handleDeletePrompt(prompt.id)} style={{ background: "#ff8d9b", color: "#2b0710", fontWeight: "700", marginTop: 0, fontSize: "0.75rem", padding: "6px 8px", whiteSpace: "nowrap" }} title="Delete prompt" aria-label="Delete prompt">🗑</button>
+											</td>
+										</tr>
+									);
+								})
+							)}
+						</tbody>
+					</table>
+				</div>
+			);
+		}
+
+		return (
+			<div style={{ width: "100%" }}>
+				<div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "18px", alignItems: "stretch" }}>
 					{pagedPrompts.length === 0 ? (
-						<tr>
-							<td colSpan={viewMode === "table" ? 6 : 2} style={{ textAlign: "center", padding: "24px", color: "#8f9aaa" }}>
-								{filterCategory ? "No prompts found for this category." : "No saved prompts yet."}
-							</td>
-						</tr>
+						<div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "30px", color: "#8f9aaa", border: "1px dashed #2a3342", borderRadius: 12, background: "#131720" }}>{filterCategory ? "No prompts found for this category." : "No saved prompts yet."}</div>
 					) : (
 						pagedPrompts.map((prompt) => {
 							const imagePaths = imagePathsForRecord(prompt.image_path);
+							const title = prompt.prompt.split("\n")[0].split(".")[0];
 							return (
-								<tr
-									key={prompt.id}
-									style={{
-										borderBottom: "1px solid #2a3342",
-										transition: "background 160ms ease",
-										...(viewMode === "vertical" && {
-											background: "#191e29",
-											borderRadius: "10px",
-											marginBottom: "12px",
-											padding: "10px 14px",
-										}),
-										...(viewMode === "grid" && {
-											background: "#191e29",
-											borderRadius: "10px",
-											display: "flex",
-											flexDirection: "column",
-											position: "relative",
-										}),
-									}}
-									onMouseEnter={(e) => viewMode === "table" && (e.currentTarget.style.background = "#0d1118")}
-									onMouseLeave={(e) => viewMode === "table" && (e.currentTarget.style.background = "transparent")}
-								>
-									<td style={{ padding: "12px 10px", width: viewMode === "grid" ? "auto" : "40px", ...(viewMode === "grid" && { position: "absolute", right: "12px", top: "12px", zIndex: 1 }) }}>
-										<input
-											type="checkbox"
-											checked={selectedIds.has(prompt.id)}
-											onChange={(e) => handleSelectPrompt(prompt.id, e.currentTarget.checked)}
-											style={{ accentColor: "#78e6c0" }}
-											aria-label={`Select prompt ${prompt.id}`}
-										/>
-									</td>
-
-									{viewMode === "table" && (
-										<>
-											<td style={{ padding: "12px 10px", color: "#f2f5f8", fontSize: "0.85rem", whiteSpace: "nowrap" }}>
-												{imagePaths[0] ? (
-													<img
-														src={`https://sdk.satheshdeveloper.workers.dev/api/image-prompts/image?key=${encodeURIComponent(imagePaths[0])}`}
-														alt="Reference"
-														loading="lazy"
-														style={{ width: 48, height: 48, borderRadius: 5, objectFit: "cover", border: "1px solid #2a3342" }}
-													/>
-												) : (
-													<div style={{ width: 48, height: 48, borderRadius: 8, background: "#202a36", border: "1px solid #2a3342", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.75rem", color: "#8f9aaa" }}>
-														No image
-													</div>
-												)}
-											</td>
-											<td style={{ padding: "12px 10px", color: "#f2f5f8", fontSize: "0.85rem", maxWidth: "500px" }}>
-												<span style={{ display: "inline-block", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={prompt.prompt}>
-													{prompt.prompt}
-												</span>
-											</td>
-											<td style={{ padding: "12px 10px", color: "#f2f5f8", fontSize: "0.85rem" }}>
-												<span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "inline-block", maxWidth: "100px" }}>
-													{prompt.category || "—"}
-												</span>
-											</td>
-											<td style={{ padding: "12px 10px", color: "#8f9aaa", fontSize: "0.85rem", whiteSpace: "nowrap" }}>
-												{new Date(`${prompt.created_at}Z`).toLocaleDateString()}
-											</td>
-											<td style={{ padding: "12px 10px", display: "flex", gap: 6 }}>
-												<button
-													type="button"
-													className="copy-btn"
-													onClick={() => setViewPrompt(prompt)}
-													style={{ fontSize: "0.75rem", padding: "6px 8px", whiteSpace: "nowrap" }}
-													title="View full prompt"
-													aria-label="View full prompt"
-												>
-													👁
-												</button>
-												<button
-													type="button"
-													className="copy-btn"
-													onClick={() => copyPrompt(prompt.prompt)}
-													style={{ fontSize: "0.75rem", padding: "6px 8px", whiteSpace: "nowrap" }}
-													title="Copy prompt"
-													aria-label="Copy prompt"
-												>
-													📋
-												</button>
-												<button
-													type="button"
-													className="copy-btn"
-													onClick={() => handleDeletePrompt(prompt.id)}
-													style={{ background: "#ff8d9b", color: "#2b0710", fontWeight: "700", marginTop: 0, fontSize: "0.75rem", padding: "6px 8px", whiteSpace: "nowrap" }}
-													title="Delete prompt"
-													aria-label="Delete prompt"
-												>
-													🗑
-												</button>
-											</td>
-										</>
-									)}
-
-									{viewMode === "vertical" && (
-										<>
-											<td data-label="Image" style={{ padding: "10px 0", borderBottom: "1px solid rgba(42, 51, 66, 0.7)", display: "grid", gridTemplateColumns: "84px 1fr", gap: 12, alignItems: "start" }}>
-												<div style={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "#8f9aaa" }}>Image</div>
-												{imagePaths[0] ? (
-													<img
-														src={`https://sdk.satheshdeveloper.workers.dev/api/image-prompts/image?key=${encodeURIComponent(imagePaths[0])}`}
-														alt="Reference"
-														loading="lazy"
-														style={{ width: "100%", height: "auto", borderRadius: 5, objectFit: "cover", border: "1px solid #2a3342" }}
-													/>
-												) : (
-													<div style={{ background: "#202a36", border: "1px solid #2a3342", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", minHeight: "48px", fontSize: "0.75rem", color: "#8f9aaa" }}>
-														No image
-													</div>
-												)}
-											</td>
-											<td data-label="Prompt" style={{ padding: "10px 0", borderBottom: "1px solid rgba(42, 51, 66, 0.7)", display: "grid", gridTemplateColumns: "84px 1fr", gap: 12, alignItems: "start", color: "#f2f5f8", fontSize: "0.85rem" }}>
-												<div style={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "#8f9aaa" }}>Prompt</div>
-												<div style={{ whiteSpace: "pre-wrap" }}>{prompt.prompt}</div>
-											</td>
-											<td data-label="Category" style={{ padding: "10px 0", borderBottom: "1px solid rgba(42, 51, 66, 0.7)", display: "grid", gridTemplateColumns: "84px 1fr", gap: 12, alignItems: "start", color: "#8f9aaa", fontSize: "0.85rem" }}>
-												<div style={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase" }}>Category</div>
-												{prompt.category || "—"}
-											</td>
-											<td data-label="Created" style={{ padding: "10px 0", borderBottom: "1px solid rgba(42, 51, 66, 0.7)", display: "grid", gridTemplateColumns: "84px 1fr", gap: 12, alignItems: "start", color: "#8f9aaa", fontSize: "0.75rem" }}>
-												<div style={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase" }}>Created</div>
-												{new Date(`${prompt.created_at}Z`).toLocaleDateString()}
-											</td>
-											<td data-label="Actions" style={{ padding: "10px 0", display: "flex", gap: 6, alignItems: "center" }}>
-												<button
-													type="button"
-													className="copy-btn"
-													onClick={() => setViewPrompt(prompt)}
-													style={{ fontSize: "0.75rem", padding: "6px 8px", whiteSpace: "nowrap", width: 34, height: 34 }}
-													title="View full prompt"
-													aria-label="View full prompt"
-												>
-													👁
-												</button>
-												<button
-													type="button"
-													className="copy-btn"
-													onClick={() => copyPrompt(prompt.prompt)}
-													style={{ fontSize: "0.75rem", padding: "6px 8px", whiteSpace: "nowrap", width: 34, height: 34 }}
-													title="Copy prompt"
-													aria-label="Copy prompt"
-												>
-													📋
-												</button>
-												<button
-													type="button"
-													className="copy-btn"
-													onClick={() => handleDeletePrompt(prompt.id)}
-													style={{ background: "#ff8d9b", color: "#2b0710", fontWeight: "700", fontSize: "0.75rem", padding: "6px 8px", whiteSpace: "nowrap", width: 34, height: 34 }}
-													title="Delete prompt"
-													aria-label="Delete prompt"
-												>
-													🗑
-												</button>
-											</td>
-										</>
-									)}
-
-									{viewMode === "grid" && (
-										<>
-											<td data-label="Image" style={{ padding: "12px", order: 1, width: "100%" }}>
-												{imagePaths[0] ? (
-													<img
-														src={`https://sdk.satheshdeveloper.workers.dev/api/image-prompts/image?key=${encodeURIComponent(imagePaths[0])}`}
-														alt="Reference"
-														loading="lazy"
-														style={{ width: "100%", height: 160, borderRadius: 8, objectFit: "cover", border: "1px solid #2a3342" }}
-													/>
-												) : (
-													<div style={{ width: "100%", height: 160, background: "#202a36", border: "1px solid #2a3342", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.75rem", color: "#8f9aaa" }}>
-														No image
-													</div>
-												)}
-											</td>
-											<td style={{ padding: "12px", paddingTop: 0, order: 2, color: "#f2f5f8", fontSize: "0.85rem", whiteSpace: "pre-wrap" }}>
-												{prompt.prompt}
-											</td>
-											<td style={{ padding: "12px", paddingTop: 0, order: 3, color: "#8f9aaa", fontSize: "0.75rem" }}>
-												<span style={{ fontWeight: 700 }}>Category:</span> {prompt.category || "—"}
-											</td>
-											<td style={{ padding: "12px", paddingTop: 0, order: 3, color: "#8f9aaa", fontSize: "0.75rem" }}>
-												<span style={{ fontWeight: 700 }}>Created:</span> {new Date(`${prompt.created_at}Z`).toLocaleDateString()}
-											</td>
-											<td style={{ padding: "12px", paddingTop: 0, order: 4, display: "flex", gap: 6 }}>
-												<button
-													type="button"
-													className="copy-btn"
-													onClick={() => setViewPrompt(prompt)}
-													style={{ fontSize: "0.75rem", padding: "6px 8px", flex: "0 0 auto" }}
-													title="View full prompt"
-													aria-label="View full prompt"
-												>
-													👁
-												</button>
-												<button
-													type="button"
-													className="copy-btn"
-													onClick={() => copyPrompt(prompt.prompt)}
-													style={{ fontSize: "0.75rem", padding: "6px 8px", flex: "0 0 auto" }}
-													title="Copy prompt"
-													aria-label="Copy prompt"
-												>
-													📋
-												</button>
-												<button
-													type="button"
-													className="copy-btn"
-													onClick={() => handleDeletePrompt(prompt.id)}
-													style={{ background: "#ff8d9b", color: "#2b0710", fontWeight: "700", fontSize: "0.75rem", padding: "6px 8px", flex: "0 0 auto" }}
-													title="Delete prompt"
-													aria-label="Delete prompt"
-												>
-													🗑
-												</button>
-											</td>
-										</>
-									)}
-								</tr>
+								<div key={prompt.id} style={{ background: "#191e29", border: "1px solid #2a3342", borderRadius: 14, overflow: "hidden", boxShadow: "0 6px 18px rgba(0,0,0,0.24)", display: "flex", flexDirection: "column", minWidth: 0 }}>
+									<div style={{ position: "relative", width: "100%", aspectRatio: "1 / 1", background: "#202a36" }}>
+										{imagePaths[0] ? <img src={`https://sdk.satheshdeveloper.workers.dev/api/image-prompts/image?key=${encodeURIComponent(imagePaths[0])}`} alt="Reference" loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} /> : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "#8f9aaa", fontSize: "0.75rem" }}>No image</div>}
+										<div style={{ position: "absolute", top: 10, right: 10, background: "rgba(19, 23, 32, 0.96)", border: "1px solid #78e6c0", borderRadius: 8, padding: 6 }}><input type="checkbox" checked={selectedIds.has(prompt.id)} onChange={(e) => handleSelectPrompt(prompt.id, e.currentTarget.checked)} style={{ accentColor: "#78e6c0", width: 18, height: 18 }} aria-label={`Select prompt ${prompt.id}`} /></div>
+									</div>
+									<div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 10, flex: 1, minWidth: 0 }}>
+										<div>
+											<div style={{ color: "#f2f5f8", fontWeight: 700, fontSize: "0.95rem", lineHeight: 1.35, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={title}>{title || "Untitled"}</div>
+											<div style={{ color: "#8f9aaa", fontSize: "0.8rem", marginTop: 6, lineHeight: 1.45, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{prompt.prompt}</div>
+										</div>
+										<div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+											{prompt.category ? <span style={{ fontSize: "0.7rem", color: "#78e6c0", border: "1px solid rgba(120, 230, 192, 0.28)", background: "rgba(120, 230, 192, 0.08)", borderRadius: 999, padding: "4px 8px", textTransform: "uppercase", letterSpacing: "0.04em" }}>{prompt.category}</span> : null}
+											<span style={{ fontSize: "0.7rem", color: "#8f9aaa" }}>{new Date(`${prompt.created_at}Z`).toLocaleDateString()}</span>
+										</div>
+										<div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: "auto" }}>
+											<button type="button" className="copy-btn" onClick={() => setViewPrompt(prompt)} style={{ fontSize: "0.75rem", padding: "6px 8px" }} title="View full prompt" aria-label="View full prompt">👁</button>
+											<button type="button" className="copy-btn" onClick={() => copyPrompt(prompt.prompt)} style={{ fontSize: "0.75rem", padding: "6px 8px" }} title="Copy prompt" aria-label="Copy prompt">📋</button>
+											<button type="button" className="copy-btn" onClick={() => handleDeletePrompt(prompt.id)} style={{ background: "#ff8d9b", color: "#2b0710", fontWeight: 700, fontSize: "0.75rem", padding: "6px 8px" }} title="Delete prompt" aria-label="Delete prompt">🗑</button>
+										</div>
+									</div>
+								</div>
 							);
 						})
 					)}
-				</tbody>
-			</table>
-		</div>
-	);
+				</div>
+			</div>
+		);
+	};
 
 	return (
 		<div className={embedded ? "image-prompt-page embedded" : "image-prompt-page"}>
@@ -821,9 +634,9 @@ export function ImagePromptHistory({ onBackToDashboard, embedded = false }: { on
 						setShowAddModal(true);
 						setError(`${pastedImages.length} image${pastedImages.length === 1 ? "" : "s"} pasted from clipboard. Added to save modal.`);
 					}}>
-						<section className="panel" style={{ gridColumn: "1 / -1" }}>
+						<section className="panel" style={{ gridColumn: "1 / -1", overflow: "visible" }}>
 							{/* History Controls */}
-							<div style={{ display: "flex", gap: "14px", justifyContent: "space-between", marginBottom: "14px", flexWrap: "wrap", alignItems: "center" }}>
+							<div style={{ display: "flex", gap: "14px", justifyContent: "space-between", marginBottom: "24px", flexWrap: "wrap", alignItems: "center" }}>
 								<label style={{ display: "flex", alignItems: "center", gap: "8px", color: "#8f9aaa", fontSize: "0.85rem" }}>
 									Category
 									<select
@@ -1079,9 +892,9 @@ export function ImagePromptHistory({ onBackToDashboard, embedded = false }: { on
 					open
 					style={{
 						position: "fixed",
-						top: "50%",
+						top: "24px",
 						left: "50%",
-						transform: "translate(-50%, -50%)",
+						transform: "translateX(-50%)",
 						background: "#131720",
 						border: "1px solid #2a3342",
 						borderRadius: "14px",
@@ -1089,6 +902,8 @@ export function ImagePromptHistory({ onBackToDashboard, embedded = false }: { on
 						padding: "24px",
 						maxWidth: "min(420px, calc(100vw - 32px))",
 						width: "100%",
+						maxHeight: "calc(100vh - 48px)",
+						overflow: "auto",
 						zIndex: 1001,
 					}}
 				>
@@ -1180,9 +995,9 @@ export function ImagePromptHistory({ onBackToDashboard, embedded = false }: { on
 						open
 						style={{
 							position: "fixed",
-							top: "50%",
+							top: "24px",
 							left: "50%",
-							transform: "translate(-50%, -50%)",
+							transform: "translateX(-50%)",
 							background: "#131720",
 							border: "1px solid #2a3342",
 							borderRadius: "14px",
@@ -1217,11 +1032,11 @@ export function ImagePromptHistory({ onBackToDashboard, embedded = false }: { on
 
 						{/* Image preview */}
 						{viewPrompt.image_path && imagePathsForRecord(viewPrompt.image_path)[0] && (
-							<div style={{ marginBottom: "16px" }}>
+							<div style={{ marginBottom: "16px", background: "#0b0d12", border: "1px solid #2a3342", borderRadius: "10px", padding: "10px" }}>
 								<img
 									src={`https://sdk.satheshdeveloper.workers.dev/api/image-prompts/image?key=${encodeURIComponent(imagePathsForRecord(viewPrompt.image_path)[0])}`}
 									alt="Preview"
-									style={{ width: "100%", maxHeight: "300px", borderRadius: 8, objectFit: "cover", border: "1px solid #2a3342" }}
+									style={{ width: "100%", height: "auto", maxHeight: "min(52vh, 420px)", objectFit: "contain", display: "block", margin: "0 auto", borderRadius: 8, background: "#05070c" }}
 								/>
 							</div>
 						)}
@@ -1317,9 +1132,9 @@ export function ImagePromptHistory({ onBackToDashboard, embedded = false }: { on
 						open
 						style={{
 							position: "fixed",
-							top: "50%",
+							top: "24px",
 							left: "50%",
-							transform: "translate(-50%, -50%)",
+							transform: "translateX(-50%)",
 							background: "#131720",
 							border: "1px solid #2a3342",
 							borderRadius: "14px",
@@ -1468,9 +1283,9 @@ export function ImagePromptHistory({ onBackToDashboard, embedded = false }: { on
 						open
 						style={{
 							position: "fixed",
-							top: "50%",
+							top: "24px",
 							left: "50%",
-							transform: "translate(-50%, -50%)",
+							transform: "translateX(-50%)",
 							background: "#131720",
 							border: "1px solid #2a3342",
 							borderRadius: "14px",
