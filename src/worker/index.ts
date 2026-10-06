@@ -53,9 +53,14 @@ app.get("/api/image-prompts", async (c) => {
 			return c.json({ error: "D1 binding DB is missing in Worker environment." }, 500);
 		}
 
-		const { results } = await db
-			.prepare("SELECT id, image_path, prompt, category, created_at FROM image_prompts ORDER BY created_at DESC, id DESC LIMIT 100")
-			.all();
+		const category = (c.req.query("category") || "").trim();
+		const query = category
+			? db.prepare(
+					"SELECT id, image_path, prompt, category, created_at FROM image_prompts WHERE category = ? ORDER BY created_at DESC, id DESC LIMIT 100",
+			  ).bind(category)
+			: db.prepare("SELECT id, image_path, prompt, category, created_at FROM image_prompts ORDER BY created_at DESC, id DESC LIMIT 100");
+
+		const { results } = await query.all();
 		return c.json(results || []);
 	} catch (error) {
 		return c.json({ error: error instanceof Error ? error.message : String(error) }, 500);
