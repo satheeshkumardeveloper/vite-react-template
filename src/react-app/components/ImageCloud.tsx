@@ -68,7 +68,7 @@ const createImagePromptInstructions = (): InstructionPreset[] => [
 Write the result in the style of a professional image-generation prompt similar to:
 "A full-body photograph of a person with long dark hair, posed in profile and looking directly at the camera. They are wearing [exact clothing details]. They are standing [exact pose and environment]. The scene includes [important background details]. The image is captured from [camera viewpoint/framing] with [lighting and visual style]."
 
-Start directly with an actionable phrase such as "Create an image of" or "Generate a photorealistic image of".
+Start directly with an actionable phrase such as "Create an image of" or "Generate a image of".
 
 Focus on the most important visible details: exact clothing and accessories, hairstyle, pose, body orientation, facial expression and gaze, background and environment, important objects, camera viewpoint and angle, framing, perspective, lighting, colors, and photographic style.
 
