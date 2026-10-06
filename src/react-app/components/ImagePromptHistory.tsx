@@ -212,17 +212,16 @@ async function deleteSavedPrompt(id: number) {
 }
 
 async function loadCategorySuggestions() {
-	const response = await fetch("/api/image-prompts");
+	const response = await fetch("/api/image-prompts/categories");
 	const records = await readResponseJson(response);
 
 	if (!response.ok) {
 		throw new Error(records?.error || "Failed to load categories");
 	}
 
-	const categories = Array.isArray(records)
-		? [...new Set(records.map((r: SavedPrompt) => r.category).filter(Boolean))]
+	return Array.isArray(records)
+		? records.filter((category: unknown): category is string => typeof category === "string" && category.trim().length > 0)
 		: [];
-	return categories as string[];
 }
 
 export function ImagePromptHistory({ onBackToDashboard, embedded = false }: { onBackToDashboard?: () => void; embedded?: boolean }) {

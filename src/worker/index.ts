@@ -62,6 +62,30 @@ app.get("/api/image-prompts", async (c) => {
 	}
 });
 
+// GET categories - fetch distinct category values only
+app.get("/api/image-prompts/categories", async (c) => {
+	try {
+		const db = c.env.DB as D1Database;
+		if (!db) {
+			return c.json({ error: "D1 binding DB is missing in Worker environment." }, 500);
+		}
+
+		const { results } = await db
+			.prepare(
+				"SELECT DISTINCT category FROM image_prompts WHERE category IS NOT NULL AND TRIM(category) <> '' ORDER BY category ASC",
+			)
+			.all();
+
+		const categories = (results || [])
+			.map((row) => (row as { category?: string | null }).category)
+			.filter((category): category is string => Boolean(category));
+
+		return c.json(categories);
+	} catch (error) {
+		return c.json({ error: error instanceof Error ? error.message : String(error) }, 500);
+	}
+});
+
 // POST image prompts - save new prompt with images
 app.post("/api/image-prompts", async (c) => {
 	try {
