@@ -497,7 +497,7 @@ export function ImagePromptHistory({ onBackToDashboard, embedded = false }: { on
 		URL.revokeObjectURL(url);
 	};
 
-	const categories = [...new Set(savedPrompts.map((p) => p.category).filter(Boolean))] as string[];
+	const categories = categorySuggestions;
 
 	const filteredPrompts = filterCategory ? savedPrompts.filter((p) => p.category === filterCategory) : savedPrompts;
 	const totalPages = Math.max(1, Math.ceil(filteredPrompts.length / recordsPerPage));
