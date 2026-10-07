@@ -1028,7 +1028,18 @@ export function ImagePromptHistory({ onBackToDashboard, embedded = false }: { on
 					>
 						<div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
 							<h2 style={{ fontSize: "1.15rem", margin: 0, color: "#f2f5f8" }}>View prompt</h2>
-							<button
+							<div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+								<button
+									type="button"
+									onClick={() => copyPrompt(viewPrompt.prompt)}
+									className="copy-btn"
+									title="Copy prompt"
+									aria-label="Copy prompt"
+									style={{ padding: "6px 10px", fontSize: "0.8rem" }}
+								>
+									📋 Copy prompt
+								</button>
+								<button
 								type="button"
 								onClick={() => setViewPrompt(null)}
 								style={{
@@ -1044,6 +1055,7 @@ export function ImagePromptHistory({ onBackToDashboard, embedded = false }: { on
 							>
 								✕
 							</button>
+						</div>
 						</div>
 
 						{/* Image preview */}

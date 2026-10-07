@@ -165,6 +165,7 @@ ${focus}`.trim(),
 	value: "dress_pose_brief",
 	label: "Dress & Pose Only (Brief)",
 	text: (focus: string) => `Create an ultra-sharp 4K photorealistic image that exactly matches the reference image, reproducing only what is clearly visible without inventing, adding, or removing anything, keeping the exact dress with the same garment type, cut, neckline, sleeves, waistline, hemline, fabric, color, print, drape, and layer placement, the same accessories and visible skin coverage, and the exact same pose with identical body orientation, head tilt, shoulder angle, arm and hand positions, leg and foot placement, facial expression, gaze, and hairstyle, shot with a full-frame camera and 135mm portrait lens at eye level with shallow depth of field, natural lighting, fine fabric and skin texture, true-to-life colors, and no distortion, watermark, or extra objects. 
+	Maintain realistic garment coverage and anatomy: fitted blouse covering the bust while leaving the neckline, shoulders, and arms visible; saree wrapped around the lower body with a naturally exposed midriff between the blouse and waist drape; fabric should follow the body contours naturally without becoming transparent or excessively revealing.
 	Final Output: Convert the observations into ONE concise, natural, continuous AI image-generation prompt beginning with "Create a highly detailed photorealistic image of". Do not include headings, explanations, analysis, or category labels in the final prompt. Never invent unclear details. ${focus}`.trim(),
 },
 {
@@ -177,6 +178,23 @@ ${focus}`.trim(),
 	value: "dress_pose_high_quality",
 	label: "Exact Pose & Dress (High Quality)",
 	text: (focus: string) => `Create a masterpiece-quality, ultra-high-resolution 8K photorealistic image that exactly matches the reference image, reproducing only what is clearly visible without inventing, adding, or removing anything, keeping the exact dress with the same garment type, cut, neckline, sleeves, waistline, hemline, fabric, color, print, embroidery, drape, folds, layer placement, accessories, and skin coverage, and the exact same pose with identical body orientation, head tilt, shoulder angle, spine posture, arm and hand positions, finger placement, leg and foot placement, facial expression, gaze, and hairstyle, captured with a professional full-frame camera and 135mm portrait lens at eye level with tack-sharp focus on the eyes, shallow depth of field, smooth natural bokeh, soft balanced studio-quality lighting, high dynamic range, rich true-to-life colors, crisp fine skin texture, individual hair strands, visible fabric weave, accurate material rendering, clean noise-free detail, and no blur, distortion, compression artifacts, watermark, text, or extra objects.
+	Match the reference garment coverage precisely: moderately low neckline, short sleeves exposing the shoulders and full arms, approximately 15–20 cm of visible midriff between the blouse hem and saree waist, visible central abdomen and navel area, partially visible side waist, fully visible hands and fingers, while the saree completely covers the hips, thighs, knees, and most of the legs, with only a small portion of the ankles/feet visible beneath the saree hem. Preserve realistic proportions and natural fabric draping.
+	Final Output: Convert the observations into ONE concise, natural, continuous AI image-generation prompt beginning with "Create a highly detailed photorealistic image of". Do not include headings, explanations, analysis, or category labels in the final prompt. Never invent unclear details. ${focus}`.trim(),
+},
+{
+	value: "exact_visible_garment_coverage",
+	label: "Exact Visible Garment Coverage",
+	text: (focus: string) => `Create a masterpiece-quality, ultra-high-resolution 8K photorealistic image that exactly matches the reference image, reproducing only what is clearly visible without inventing, adding, or removing anything, keeping the exact dress with the same garment type, cut, neckline, sleeves, waistline, hemline, fabric, color, print, embroidery, drape, folds, layer placement, accessories, and skin coverage, and the exact same pose with identical body orientation, head tilt, shoulder angle, spine posture, arm and hand positions, finger placement, leg and foot placement, facial expression, gaze, and hairstyle, captured with a professional full-frame camera and 135mm portrait lens at eye level with tack-sharp focus on the eyes, shallow depth of field, smooth natural bokeh, soft balanced studio-quality lighting, high dynamic range, rich true-to-life colors, crisp fine skin texture, individual hair strands, visible fabric weave, accurate material rendering, clean noise-free detail, and no blur, distortion, compression artifacts, watermark, text, or extra objects.
+	Body and garment visibility:
+	Neckline: moderately low, approximately 5–7 cm of visible upper-chest area below the neck, with the blouse covering the bust.
+	Shoulders: approximately 8–10 cm of shoulder area visible on each side due to the short-sleeved blouse.
+	Arms: both arms are substantially visible from the short sleeves to the wrists; approximately 25–30 cm of arm length visible on each side.
+	Midriff: clearly visible between the blouse hem and saree waist, approximately 15–20 cm vertically; the navel/central abdomen area is visible.
+	Waist: approximately 8–12 cm of the side waist is visible on the right side, while the left side is partly covered by the saree drape.
+	Hands: both hands are fully visible, including fingers and wrists; the right hand rests near the waist and the left hand touches the saree near the thigh.
+	Legs: the legs are almost completely covered by the saree; only the lower foot/ankle area is partially visible beneath the saree hem.
+	Feet: both feet are mostly concealed by the flowing saree, with only a small portion visible near the bottom.
+	Saree coverage: maintain continuous fabric coverage from the waist downward, with natural folds and draping around the hips, thighs, knees, and legs.
 	Final Output: Convert the observations into ONE concise, natural, continuous AI image-generation prompt beginning with "Create a highly detailed photorealistic image of". Do not include headings, explanations, analysis, or category labels in the final prompt. Never invent unclear details. ${focus}`.trim(),
 },
 ];
@@ -341,6 +359,54 @@ export function ImageCloud({ onBackToDashboard, embedded = false }: { onBackToDa
 		window.setTimeout(() => setCopyLabel("Copy"), 1600);
 	};
 
+	const processBatchItem = async (index: number) => {
+		const file = selectedFiles[index];
+		if (!file) {
+			throw new Error("Selected image not found.");
+		}
+
+		setBatchResults((current) =>
+			current.map((r) =>
+				r.fileIndex === index ? { ...r, status: "processing" as const, error: undefined } : r,
+			),
+		);
+
+		const dataUrl = await fileToDataUrl(file);
+		const response = await fetch("/api/image-prompt-vision", {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify({
+				model,
+				promptText: `${generatedPromptText} ${category.trim() ? `Category: ${category.trim()}.` : ""}`,
+				images: [{ dataUrl }],
+			}),
+		});
+
+		const data = await readResponseJson(response);
+		if (!response.ok) {
+			throw new Error(data?.error || "Cloudflare vision request failed");
+		}
+
+		const reply = typeof data?.reply === "string" ? data.reply.trim() : "";
+		if (!reply) {
+			throw new Error("No prompt returned");
+		}
+
+		setBatchResults((current) =>
+			current.map((r) =>
+				r.fileIndex === index ? { ...r, status: "done" as const, result: reply, error: undefined } : r,
+			),
+		);
+
+		if (!privateMode) {
+			await saveGeneratedPrompt(reply, category, [file]);
+		}
+
+		return reply;
+	};
+
 	const handleBatchProcess = async () => {
 		if (!selectedFiles.length) {
 			setError("Please select at least one image.");
@@ -359,43 +425,8 @@ export function ImageCloud({ onBackToDashboard, embedded = false }: { onBackToDa
 		setBatchProcessing(true);
 
 		for (let i = 0; i < selectedFiles.length; i++) {
-			setBatchResults((current) =>
-				current.map((r) => (r.fileIndex === i ? { ...r, status: "processing" as const } : r)),
-			);
-
 			try {
-				const dataUrl = await fileToDataUrl(selectedFiles[i]);
-				const response = await fetch("/api/image-prompt-vision", {
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-					},
-					body: JSON.stringify({
-						model,
-						promptText: `${generatedPromptText} ${category.trim() ? `Category: ${category.trim()}.` : ""}`,
-						images: [{ dataUrl }],
-					}),
-				});
-
-				const data = await readResponseJson(response);
-				if (!response.ok) {
-					throw new Error(data?.error || "Cloudflare vision request failed");
-				}
-
-				const reply = typeof data?.reply === "string" ? data.reply.trim() : "";
-				if (!reply) {
-					throw new Error("No prompt returned");
-				}
-
-				setBatchResults((current) =>
-					current.map((r) =>
-						r.fileIndex === i ? { ...r, status: "done" as const, result: reply } : r,
-					),
-				);
-
-				if (!privateMode) {
-					await saveGeneratedPrompt(reply, category, [selectedFiles[i]]);
-				}
+				await processBatchItem(i);
 
 				if (i < selectedFiles.length - 1) {
 					await new Promise((resolve) => setTimeout(resolve, 2000));
@@ -419,6 +450,20 @@ export function ImageCloud({ onBackToDashboard, embedded = false }: { onBackToDa
 			} catch {
 				console.error("Failed to refresh categories");
 			}
+		}
+	};
+
+	const handleRetryBatchItem = async (fileIndex: number) => {
+		try {
+			setError("");
+			await processBatchItem(fileIndex);
+		} catch (err) {
+			const message = err instanceof Error ? err.message : "Unknown error";
+			setBatchResults((current) =>
+				current.map((r) =>
+					r.fileIndex === fileIndex ? { ...r, status: "error" as const, error: message } : r,
+				),
+			);
 		}
 	};
 
@@ -781,6 +826,27 @@ export function ImageCloud({ onBackToDashboard, embedded = false }: { onBackToDa
 														title="Copy result"
 													>
 														📋
+													</button>
+												)}
+												{result.status === "error" && (
+													<button
+														type="button"
+														onClick={() => handleRetryBatchItem(result.fileIndex)}
+														disabled={batchProcessing}
+														style={{
+															background: "#3b82f6",
+															border: 0,
+															borderRadius: "4px",
+															color: "#ffffff",
+															cursor: "pointer",
+															padding: "4px 8px",
+															fontSize: "0.75rem",
+															fontWeight: 600,
+															marginRight: "8px",
+														}}
+														title="Retry failed item"
+													>
+														Retry
 													</button>
 												)}
 												{result.status === "error" && (
