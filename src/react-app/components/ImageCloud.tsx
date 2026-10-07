@@ -85,7 +85,10 @@ Return ONLY ONE continuous paragraph. Do not include headings, bullet points, la
 	{
 		value: "detailed",
 		label: "More Detail Way",
-		text: (focus: string) => `Create a highly detailed photorealistic image matching the reference image as closely as possible, preserving the visible clothing, accessories, hairstyle, pose, facial expression, gaze, body orientation, environment, background elements, colors, textures, and composition without inventing unclear details. Capture the subject with a professional full-frame camera using a 135mm telephoto portrait lens, from a natural eye-level viewpoint and appropriate distance, with strong subject-background separation, realistic optical compression, shallow depth of field, smooth natural bokeh, precise focus on the subject's eyes and visible facial details, fine skin and fabric texture, realistic hair strands, accurate material rendering, subtle natural shadows, balanced exposure, soft directional lighting, true-to-life colors, high dynamic range, realistic contrast, and an ultra-detailed professional editorial photography aesthetic. ${focus}`.trim(),
+		text: (focus: string) => `Create a highly detailed photorealistic image matching the reference image as closely as possible, preserving the visible clothing, accessories, hairstyle, pose, facial expression, gaze, body orientation, environment, background elements, colors, textures, and composition without inventing unclear details. Capture the subject with a professional full-frame camera using a 135mm telephoto portrait lens, from a natural eye-level viewpoint and appropriate distance, with strong subject-background separation, realistic optical compression, shallow depth of field, smooth natural bokeh, precise focus on the subject's eyes and visible facial details, fine skin and fabric texture, realistic hair strands, accurate material rendering, subtle natural shadows, balanced exposure, soft directional lighting, true-to-life colors, high dynamic range, realistic contrast, and an ultra-detailed professional editorial photography aesthetic. 
+		
+		Final Output: Convert the observations into ONE concise, natural, continuous AI image-generation prompt beginning with "Create a highly detailed photorealistic image of". Do not include headings, explanations, analysis, or category labels in the final prompt. Never invent unclear details.
+		${focus}`.trim(),
 	},
 	{
 		value: "category-wise",
@@ -120,6 +123,62 @@ Image Quality: Request highly detailed photorealistic rendering, realistic textu
 
 Final Output: Convert the observations into ONE concise, natural, continuous AI image-generation prompt beginning with "Create a highly detailed photorealistic image of". Do not include headings, explanations, analysis, or category labels in the final prompt. Never invent unclear details. ${focus}`.trim(),
 	},
+	{
+	value: "exact_replica",
+	label: "Exact Dress, Pose & Background",
+	text: (focus: string) => `Create an ultra-sharp, high-resolution (4K, HD) photorealistic image that is a faithful reproduction of the reference image. Reproduce only what is clearly visible in the reference. Do not invent, add, remove, or alter any detail.
+
+DRESS / OUTFIT (exact match):
+- Garment type, cut, and silhouette (fitted, loose, A-line, straight, layered, etc.) exactly as shown.
+- Neckline shape and depth, collar, sleeve type and length, strap or shoulder placement, waistline position, hemline length, and slits or openings in their exact positions.
+- Fabric type and finish (cotton, silk, satin, denim, lace, knit, etc.), with true colors, patterns, prints, embroidery, borders, buttons, zippers, and stitching in the same places.
+- Drape and fit: how the fabric falls, folds, creases, tension points, and wrinkles on the body, and where each garment layer begins and ends.
+- Dupatta, scarf, jacket, belt, or other layers positioned exactly as in the reference (over which shoulder, how it hangs, where it is tucked or pinned).
+- Accessories exactly as shown: jewelry, watch, glasses, bag, footwear, hair accessories, with the same placement and side.
+
+VISIBLE BODY AREAS AND COVERAGE:
+- Keep the same skin exposure and clothing coverage as the reference: which areas of the arms, shoulders, neckline, back, waist, legs, and feet are visible or covered.
+- Do not expose more or less skin than the reference, and do not change coverage boundaries.
+
+POSE AND EXPRESSION (exact match):
+- Body orientation, head tilt, shoulder angle, spine posture, weight distribution, and stance.
+- Exact position of both arms, hands, and fingers, and of both legs and feet, including which side is forward or bent.
+- Facial expression, gaze direction, eye contact, and mouth position as in the reference.
+- Hairstyle, parting, length, and how the hair falls.
+
+BACKGROUND AND ENVIRONMENT (exact match):
+- All visible background elements, with their positions, colors, textures, and relative distance from the subject.
+- Surfaces, props, furniture, architecture, foliage, sky, and any text or signage as seen.
+- Same time of day, light direction, color temperature, and shadow placement.
+
+CAMERA AND QUALITY:
+- Full-frame camera, 135mm portrait lens, eye-level viewpoint, same framing and crop as the reference.
+- Shallow depth of field with smooth natural bokeh, tack-sharp focus on the eyes and face.
+- Fine skin texture, individual hair strands, visible fabric weave, accurate material rendering, balanced exposure, true-to-life colors, high dynamic range, clean and noise-free, no blur, no compression artifacts.
+
+STRICT RULES: no extra people, objects, logos, or text; no changes to outfit design, pose, or background; no distortion of hands, fingers, face, or proportions; no watermark. 
+
+Final Output: Convert the observations into ONE concise, natural, continuous AI image-generation prompt beginning with "Create a highly detailed photorealistic image of". Do not include headings, explanations, analysis, or category labels in the final prompt. Never invent unclear details.
+${focus}`.trim(),
+},
+{
+	value: "dress_pose_brief",
+	label: "Dress & Pose Only (Brief)",
+	text: (focus: string) => `Create an ultra-sharp 4K photorealistic image that exactly matches the reference image, reproducing only what is clearly visible without inventing, adding, or removing anything, keeping the exact dress with the same garment type, cut, neckline, sleeves, waistline, hemline, fabric, color, print, drape, and layer placement, the same accessories and visible skin coverage, and the exact same pose with identical body orientation, head tilt, shoulder angle, arm and hand positions, leg and foot placement, facial expression, gaze, and hairstyle, shot with a full-frame camera and 135mm portrait lens at eye level with shallow depth of field, natural lighting, fine fabric and skin texture, true-to-life colors, and no distortion, watermark, or extra objects. 
+	Final Output: Convert the observations into ONE concise, natural, continuous AI image-generation prompt beginning with "Create a highly detailed photorealistic image of". Do not include headings, explanations, analysis, or category labels in the final prompt. Never invent unclear details. ${focus}`.trim(),
+},
+{
+	value: "dress_pose_sweat_lovely",
+	label: "Exact Pose & Dress with Sweat Look",
+	text: (focus: string) => `Create an ultra-sharp 4K photorealistic image that exactly matches the reference image, reproducing only what is clearly visible without inventing, adding, or removing anything, keeping the exact dress with the same garment type, cut, neckline, sleeves, waistline, hemline, fabric, color, print, drape, accessories, and skin coverage, and the exact same pose with identical body orientation, head tilt, shoulder angle, arm and hand positions, leg and foot placement, and hairstyle, while adding a natural sweaty look with fine realistic beads of perspiration and a soft dewy sheen on the face, neck, arms, and other visible skin, a few damp hair strands clinging near the temples and forehead, and slightly darkened damp patches on the fabric where sweat would naturally appear, and giving the face a lovely, charming, and endearing look with a soft warm expression, bright expressive eyes, a gentle natural smile, and a relaxed gaze as in the reference, shot with a full-frame camera and 135mm portrait lens at eye level with shallow depth of field, soft warm natural lighting that catches the skin highlights, fine skin and fabric texture, true-to-life colors, and no distortion, watermark, or extra objects.
+	Final Output: Convert the observations into ONE concise, natural, continuous AI image-generation prompt beginning with "Create a highly detailed photorealistic image of". Do not include headings, explanations, analysis, or category labels in the final prompt. Never invent unclear details. ${focus}`.trim(),
+},
+{
+	value: "dress_pose_high_quality",
+	label: "Exact Pose & Dress (High Quality)",
+	text: (focus: string) => `Create a masterpiece-quality, ultra-high-resolution 8K photorealistic image that exactly matches the reference image, reproducing only what is clearly visible without inventing, adding, or removing anything, keeping the exact dress with the same garment type, cut, neckline, sleeves, waistline, hemline, fabric, color, print, embroidery, drape, folds, layer placement, accessories, and skin coverage, and the exact same pose with identical body orientation, head tilt, shoulder angle, spine posture, arm and hand positions, finger placement, leg and foot placement, facial expression, gaze, and hairstyle, captured with a professional full-frame camera and 135mm portrait lens at eye level with tack-sharp focus on the eyes, shallow depth of field, smooth natural bokeh, soft balanced studio-quality lighting, high dynamic range, rich true-to-life colors, crisp fine skin texture, individual hair strands, visible fabric weave, accurate material rendering, clean noise-free detail, and no blur, distortion, compression artifacts, watermark, text, or extra objects.
+	Final Output: Convert the observations into ONE concise, natural, continuous AI image-generation prompt beginning with "Create a highly detailed photorealistic image of". Do not include headings, explanations, analysis, or category labels in the final prompt. Never invent unclear details. ${focus}`.trim(),
+},
 ];
 
 function loadUsage(): UsageRecord {

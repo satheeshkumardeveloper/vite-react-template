@@ -22,6 +22,14 @@ app.post("/api/image-prompt-generate", async (c) => {
 			return c.json({ error: "Missing Gemini API key in Worker environment." }, 500);
 		}
 
+		const requestBodyWithTokenLimit = {
+			...requestBody,
+			generationConfig: {
+				...(requestBody?.generationConfig || {}),
+				maxOutputTokens: 1024,
+			},
+		};
+
 		const upstream = await fetch(
 			`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
 			{
@@ -29,7 +37,7 @@ app.post("/api/image-prompt-generate", async (c) => {
 				headers: {
 					"Content-Type": "application/json",
 				},
-				body: JSON.stringify(requestBody),
+				body: JSON.stringify(requestBodyWithTokenLimit),
 			},
 		);
 
@@ -270,6 +278,7 @@ app.post("/api/image-prompt-vision", async (c) => {
 							content: messageContent,
 						},
 					],
+					max_tokens: 2024,
 				}),
 			},
 		);
