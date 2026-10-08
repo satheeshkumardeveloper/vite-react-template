@@ -197,6 +197,59 @@ ${focus}`.trim(),
 	Saree coverage: maintain continuous fabric coverage from the waist downward, with natural folds and draping around the hips, thighs, knees, and legs.
 	Final Output: Convert the observations into ONE concise, natural, continuous AI image-generation prompt beginning with "Create a highly detailed photorealistic image of". Do not include headings, explanations, analysis, or category labels in the final prompt. Never invent unclear details. ${focus}`.trim(),
 },
+{
+	value: "Full_Analysis",
+	label: "Full Analysis",
+	text: (focus: string) => `
+	Recreate the reference image as accurately as possible.
+
+COMPOSITION:
+Describe exact framing, camera angle, subject position, crop and spatial relationships.
+
+SUBJECT:
+Describe the main subject in precise detail.
+
+FACE / IDENTITY:
+Describe facial structure, expression, eyes, hair, skin and distinguishing characteristics.
+
+POSE:
+Describe exact body orientation, head position, arms, hands, legs and gaze.
+
+CLOTHING:
+Describe every visible garment, color, material, texture, pattern and accessory.
+
+ENVIRONMENT:
+Describe the exact background, surroundings and objects.
+
+LIGHTING:
+Describe light direction, softness, intensity, shadows, highlights and color temperature.
+
+CAMERA:
+Describe camera height, perspective, focal length, depth of field and focus.
+
+COLOR:
+Preserve the reference image's color palette, contrast, saturation and white balance.
+
+MATERIAL / TEXTURE:
+Preserve realistic skin, hair, fabric and environmental textures.
+
+IMAGE STYLE:
+Describe whether the image is photorealistic, cinematic, editorial, etc.
+
+FIDELITY:
+Prioritize visual similarity to the reference over creative interpretation.
+Preserve the same composition, proportions, pose, facial expression, clothing,
+lighting, background and perspective.
+
+DO NOT:
+Do not change the pose, clothing, proportions, camera angle,
+background arrangement or lighting.
+Do not add or remove objects.
+No extra fingers, malformed hands, distorted anatomy, duplicate objects,
+text, watermark or artificial facial features.
+
+	Final Output: Convert the observations into ONE concise, natural, continuous AI image-generation prompt beginning with "Create a highly detailed photorealistic image of". Do not include headings, explanations, analysis, or category labels in the final prompt. Never invent unclear details. ${focus}`.trim(),
+},
 ];
 
 function loadUsage(): UsageRecord {
