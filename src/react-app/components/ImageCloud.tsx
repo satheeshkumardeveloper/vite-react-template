@@ -1,20 +1,6 @@
 import { useEffect, useMemo, useState, type ClipboardEvent } from "react";
 import "../styles/ImagePrompt.css";
 
-type PromptFocus =
-	| "full"
-	| "dress"
-	| "pose"
-	| "face"
-	| "hair"
-	| "accessories"
-	| "background"
-	| "lighting"
-	| "camera"
-	| "composition"
-	| "colors"
-	| "style";
-
 type BatchResult = {
 	fileIndex: number;
 	fileName: string;
@@ -38,20 +24,8 @@ const MODEL_OPTIONS = [
 	"@cf/mistralai/mistral-small-3.1-24b-instruct",
 ] as const;
 
-const focusInstructions: Record<PromptFocus, string> = {
-	full: "Cover the visible subject, outfit, accessories, pose, expression, background, lighting, camera angle, composition, colors, and photographic style.",
-	dress: "Focus on garments, fabrics, colors, patterns, fit, layers, shoes, jewelry, bags, and visible accessory details.",
-	pose: "Focus on posture, body orientation, hand and leg positions, head angle, facial expression, and framing.",
-	face: "Focus on face shape, skin tone, eyes, brows, nose, lips, expression, gaze, and visible facial details without identifying the person.",
-	hair: "Focus on hairstyle, length, texture, color, parting, volume, styling, and visible hair accessories.",
-	accessories: "Focus on jewelry, glasses, hats, watches, belts, bags, and other visible accessories.",
-	background: "Focus on environment, architecture, objects, landscape, depth, and background contrast.",
-	lighting: "Focus on light direction, softness, intensity, color temperature, shadows, highlights, and reflection quality.",
-	camera: "Focus on shot type, camera angle, framing, distance, depth of field, viewpoint, and perspective.",
-	composition: "Focus on subject placement, balance, negative space, foreground and background layering, and visual arrangement.",
-	colors: "Focus on the visible color palette, saturation, contrast, materials, and characteristic tones.",
-	style: "Focus on the photographic or editorial style, realism, sharpness, texture, and overall visual quality.",
-};
+const INSTRUCTION_SOURCE_URL =
+	import.meta.env.VITE_IMAGE_CLOUD_INSTRUCTIONS_URL?.trim() || "/instructions/image-cloud/instructions.json";
 
 type InstructionPreset = {
 	value: string;
@@ -59,198 +33,70 @@ type InstructionPreset = {
 	text: (focusText: string) => string;
 };
 
-const createImagePromptInstructions = (): InstructionPreset[] => [
+type InstructionPresetRecord = {
+	value: string;
+	label: string;
+	textTemplate?: string;
+	textTemplateLines?: string[];
+};
+
+const DEFAULT_INSTRUCTION_PRESETS: InstructionPreset[] = [
 	{
 		value: "default",
 		label: "Default",
-		text: (focus: string) => `Analyze the reference image internally and generate one concise, natural AI image-generation prompt that recreates the image as accurately as possible.
-
-Write the result in the style of a professional image-generation prompt similar to:
-"A full-body photograph of a person with long dark hair, posed in profile and looking directly at the camera. They are wearing [exact clothing details]. They are standing [exact pose and environment]. The scene includes [important background details]. The image is captured from [camera viewpoint/framing] with [lighting and visual style]."
-
-Start directly with an actionable phrase such as "Create an image of" or "Generate a image of".
-
-Focus on the most important visible details: exact clothing and accessories, hairstyle, pose, body orientation, facial expression and gaze, background and environment, important objects, camera viewpoint and angle, framing, perspective, lighting, colors, and photographic style.
-
-Describe clothing as specifically as possible, including the exact garments, colors, patterns, materials, shape, and visible details. Describe the pose precisely, including whether the subject is facing forward, sideways, in profile, turned away, sitting, standing, leaning, or interacting with something. Describe the camera view clearly, such as full-body, three-quarter, waist-up, close-up, eye-level, low-angle, high-angle, front view, side view, or three-quarter view, when visually apparent.
-
-Do not identify the person or guess their identity. Do not describe or classify body type, weight, attractiveness, gender, race, ethnicity, health, personality, or other personal attributes. Do not use terms such as fat, thin, slim, curvy, plus-size, muscular, beautiful, attractive, or similar classifications. Use neutral visual descriptions only.
-
-Do not invent details that are not visible in the reference image. If a detail is unclear, omit it rather than guessing.
-
-Keep the final prompt concise and natural. Include only details that materially contribute to recreating the reference image. Do not turn the output into a technical checklist.
-
-Return ONLY ONE continuous paragraph. Do not include headings, bullet points, labels, explanations, analysis, or any extra text. ${focus}`.trim(),
+		text: (focusText: string) => `Analyze the reference image internally and generate one concise, natural AI image-generation prompt that recreates the image as accurately as possible. ${focusText}`.trim(),
 	},
 	{
 		value: "detailed",
 		label: "More Detail Way",
-		text: (focus: string) => `Create a highly detailed photorealistic image matching the reference image as closely as possible, preserving the visible clothing, accessories, hairstyle, pose, facial expression, gaze, body orientation, environment, background elements, colors, textures, and composition without inventing unclear details. Capture the subject with a professional full-frame camera using a 135mm telephoto portrait lens, from a natural eye-level viewpoint and appropriate distance, with strong subject-background separation, realistic optical compression, shallow depth of field, smooth natural bokeh, precise focus on the subject's eyes and visible facial details, fine skin and fabric texture, realistic hair strands, accurate material rendering, subtle natural shadows, balanced exposure, soft directional lighting, true-to-life colors, high dynamic range, realistic contrast, and an ultra-detailed professional editorial photography aesthetic. 
-		
-		Final Output: Convert the observations into ONE concise, natural, continuous AI image-generation prompt beginning with "Create a highly detailed photorealistic image of". Do not include headings, explanations, analysis, or category labels in the final prompt. Never invent unclear details.
-		${focus}`.trim(),
+		text: (focusText: string) => `Create a highly detailed photorealistic image matching the reference image as closely as possible. ${focusText}`.trim(),
 	},
 	{
 		value: "category-wise",
 		label: "Category Wise",
-		text: (focus: string) => `Analyze the reference image internally and generate one highly accurate AI image-generation prompt by examining the image using the following categories. Include only details that are clearly visible in the reference image. Do not guess, assume, identify, or invent details.
-
-Subject: Describe the visible subject's position, orientation, hairstyle, hair length, hair arrangement, facial expression, gaze direction, and other clearly visible visual details using neutral language.
-
-Dress: Describe the clothing in precise detail, including garment type, color, patterns, fabric, texture, neckline, sleeves, straps, length, folds, embroidery, borders, buttons, seams, layering, transparency, and other visible characteristics. Include footwear if visible.
-
-Accessories: Describe clearly visible jewelry, watches, glasses, bags, belts, hair accessories, or other accessories, including their color, material, shape, and placement.
-
-Pose: Describe the exact posture and body orientation, including standing, sitting, leaning, walking, hand position, arm position, leg position, head angle, shoulder direction, and interaction with nearby objects.
-
-Facial Expression: Describe the visible expression, eye direction, mouth position, head position, and clearly visible facial details without identifying the person or making personal judgments.
-
-Environment: Describe the location, surroundings, architecture, furniture, vegetation, landscape, floor, walls, weather, and other environmental elements visible in the image.
-
-Background: Describe important background objects, colors, textures, depth, foreground elements, and their spatial relationship with the subject.
-
-Composition: Describe subject placement, framing, negative space, perspective, symmetry, foreground, background, and overall visual arrangement.
-
-Camera: Describe the apparent camera viewpoint, height, angle, framing, distance, and perspective. Recreate the photograph using a professional full-frame camera with a 135mm telephoto lens, realistic optical compression, natural proportions, shallow depth of field, and smooth background bokeh.
-
-Lighting: Describe light direction, softness, intensity, shadows, highlights, reflections, color temperature, and overall illumination.
-
-Colors & Details: Accurately reproduce visible colors, textures, materials, fine details, realistic skin and hair texture, fabric fibers, natural shadows, and environmental details.
-
-Type of Image: Specify whether the reference appears to be a photorealistic portrait, fashion photograph, editorial photograph, lifestyle photograph, cinematic photograph, or another clearly identifiable visual style.
-
-Image Quality: Request highly detailed photorealistic rendering, realistic textures, natural colors, accurate lighting, realistic depth of field, clean fine details, and professional photographic quality.
-
-Final Output: Convert the observations into ONE concise, natural, continuous AI image-generation prompt beginning with "Create a highly detailed photorealistic image of". Do not include headings, explanations, analysis, or category labels in the final prompt. Never invent unclear details. ${focus}`.trim(),
+		text: (focusText: string) => `Analyze the reference image internally and generate one highly accurate AI image-generation prompt by examining the image using the following categories. ${focusText}`.trim(),
 	},
-	{
-	value: "exact_replica",
-	label: "Exact Dress, Pose & Background",
-	text: (focus: string) => `Create an ultra-sharp, high-resolution (4K, HD) photorealistic image that is a faithful reproduction of the reference image. Reproduce only what is clearly visible in the reference. Do not invent, add, remove, or alter any detail.
-
-DRESS / OUTFIT (exact match):
-- Garment type, cut, and silhouette (fitted, loose, A-line, straight, layered, etc.) exactly as shown.
-- Neckline shape and depth, collar, sleeve type and length, strap or shoulder placement, waistline position, hemline length, and slits or openings in their exact positions.
-- Fabric type and finish (cotton, silk, satin, denim, lace, knit, etc.), with true colors, patterns, prints, embroidery, borders, buttons, zippers, and stitching in the same places.
-- Drape and fit: how the fabric falls, folds, creases, tension points, and wrinkles on the body, and where each garment layer begins and ends.
-- Dupatta, scarf, jacket, belt, or other layers positioned exactly as in the reference (over which shoulder, how it hangs, where it is tucked or pinned).
-- Accessories exactly as shown: jewelry, watch, glasses, bag, footwear, hair accessories, with the same placement and side.
-
-VISIBLE BODY AREAS AND COVERAGE:
-- Keep the same skin exposure and clothing coverage as the reference: which areas of the arms, shoulders, neckline, back, waist, legs, and feet are visible or covered.
-- Do not expose more or less skin than the reference, and do not change coverage boundaries.
-
-POSE AND EXPRESSION (exact match):
-- Body orientation, head tilt, shoulder angle, spine posture, weight distribution, and stance.
-- Exact position of both arms, hands, and fingers, and of both legs and feet, including which side is forward or bent.
-- Facial expression, gaze direction, eye contact, and mouth position as in the reference.
-- Hairstyle, parting, length, and how the hair falls.
-
-BACKGROUND AND ENVIRONMENT (exact match):
-- All visible background elements, with their positions, colors, textures, and relative distance from the subject.
-- Surfaces, props, furniture, architecture, foliage, sky, and any text or signage as seen.
-- Same time of day, light direction, color temperature, and shadow placement.
-
-CAMERA AND QUALITY:
-- Full-frame camera, 135mm portrait lens, eye-level viewpoint, same framing and crop as the reference.
-- Shallow depth of field with smooth natural bokeh, tack-sharp focus on the eyes and face.
-- Fine skin texture, individual hair strands, visible fabric weave, accurate material rendering, balanced exposure, true-to-life colors, high dynamic range, clean and noise-free, no blur, no compression artifacts.
-
-STRICT RULES: no extra people, objects, logos, or text; no changes to outfit design, pose, or background; no distortion of hands, fingers, face, or proportions; no watermark. 
-
-Final Output: Convert the observations into ONE concise, natural, continuous AI image-generation prompt beginning with "Create a highly detailed photorealistic image of". Do not include headings, explanations, analysis, or category labels in the final prompt. Never invent unclear details.
-${focus}`.trim(),
-},
-{
-	value: "dress_pose_brief",
-	label: "Dress & Pose Only (Brief)",
-	text: (focus: string) => `Create an ultra-sharp 4K photorealistic image that exactly matches the reference image, reproducing only what is clearly visible without inventing, adding, or removing anything, keeping the exact dress with the same garment type, cut, neckline, sleeves, waistline, hemline, fabric, color, print, drape, and layer placement, the same accessories and visible skin coverage, and the exact same pose with identical body orientation, head tilt, shoulder angle, arm and hand positions, leg and foot placement, facial expression, gaze, and hairstyle, shot with a full-frame camera and 135mm portrait lens at eye level with shallow depth of field, natural lighting, fine fabric and skin texture, true-to-life colors, and no distortion, watermark, or extra objects. 
-	Maintain realistic garment coverage and anatomy: fitted blouse covering the bust while leaving the neckline, shoulders, and arms visible; saree wrapped around the lower body with a naturally exposed midriff between the blouse and waist drape; fabric should follow the body contours naturally without becoming transparent or excessively revealing.
-	Final Output: Convert the observations into ONE concise, natural, continuous AI image-generation prompt beginning with "Create a highly detailed photorealistic image of". Do not include headings, explanations, analysis, or category labels in the final prompt. Never invent unclear details. ${focus}`.trim(),
-},
-{
-	value: "dress_pose_sweat_lovely",
-	label: "Exact Pose & Dress with Sweat Look",
-	text: (focus: string) => `Create an ultra-sharp 4K photorealistic image that exactly matches the reference image, reproducing only what is clearly visible without inventing, adding, or removing anything, keeping the exact dress with the same garment type, cut, neckline, sleeves, waistline, hemline, fabric, color, print, drape, accessories, and skin coverage, and the exact same pose with identical body orientation, head tilt, shoulder angle, arm and hand positions, leg and foot placement, and hairstyle, while adding a natural sweaty look with fine realistic beads of perspiration and a soft dewy sheen on the face, neck, arms, and other visible skin, a few damp hair strands clinging near the temples and forehead, and slightly darkened damp patches on the fabric where sweat would naturally appear, and giving the face a lovely, charming, and endearing look with a soft warm expression, bright expressive eyes, a gentle natural smile, and a relaxed gaze as in the reference, shot with a full-frame camera and 135mm portrait lens at eye level with shallow depth of field, soft warm natural lighting that catches the skin highlights, fine skin and fabric texture, true-to-life colors, and no distortion, watermark, or extra objects.
-	Final Output: Convert the observations into ONE concise, natural, continuous AI image-generation prompt beginning with "Create a highly detailed photorealistic image of". Do not include headings, explanations, analysis, or category labels in the final prompt. Never invent unclear details. ${focus}`.trim(),
-},
-{
-	value: "dress_pose_high_quality",
-	label: "Exact Pose & Dress (High Quality)",
-	text: (focus: string) => `Create a masterpiece-quality, ultra-high-resolution 8K photorealistic image that exactly matches the reference image, reproducing only what is clearly visible without inventing, adding, or removing anything, keeping the exact dress with the same garment type, cut, neckline, sleeves, waistline, hemline, fabric, color, print, embroidery, drape, folds, layer placement, accessories, and skin coverage, and the exact same pose with identical body orientation, head tilt, shoulder angle, spine posture, arm and hand positions, finger placement, leg and foot placement, facial expression, gaze, and hairstyle, captured with a professional full-frame camera and 135mm portrait lens at eye level with tack-sharp focus on the eyes, shallow depth of field, smooth natural bokeh, soft balanced studio-quality lighting, high dynamic range, rich true-to-life colors, crisp fine skin texture, individual hair strands, visible fabric weave, accurate material rendering, clean noise-free detail, and no blur, distortion, compression artifacts, watermark, text, or extra objects.
-	Match the reference garment coverage precisely: moderately low neckline, short sleeves exposing the shoulders and full arms, approximately 15–20 cm of visible midriff between the blouse hem and saree waist, visible central abdomen and navel area, partially visible side waist, fully visible hands and fingers, while the saree completely covers the hips, thighs, knees, and most of the legs, with only a small portion of the ankles/feet visible beneath the saree hem. Preserve realistic proportions and natural fabric draping.
-	Final Output: Convert the observations into ONE concise, natural, continuous AI image-generation prompt beginning with "Create a highly detailed photorealistic image of". Do not include headings, explanations, analysis, or category labels in the final prompt. Never invent unclear details. ${focus}`.trim(),
-},
-{
-	value: "exact_visible_garment_coverage",
-	label: "Exact Visible Garment Coverage",
-	text: (focus: string) => `Create a masterpiece-quality, ultra-high-resolution 8K photorealistic image that exactly matches the reference image, reproducing only what is clearly visible without inventing, adding, or removing anything, keeping the exact dress with the same garment type, cut, neckline, sleeves, waistline, hemline, fabric, color, print, embroidery, drape, folds, layer placement, accessories, and skin coverage, and the exact same pose with identical body orientation, head tilt, shoulder angle, spine posture, arm and hand positions, finger placement, leg and foot placement, facial expression, gaze, and hairstyle, captured with a professional full-frame camera and 135mm portrait lens at eye level with tack-sharp focus on the eyes, shallow depth of field, smooth natural bokeh, soft balanced studio-quality lighting, high dynamic range, rich true-to-life colors, crisp fine skin texture, individual hair strands, visible fabric weave, accurate material rendering, clean noise-free detail, and no blur, distortion, compression artifacts, watermark, text, or extra objects.
-	Body and garment visibility:
-	Neckline: moderately low, approximately 5–7 cm of visible upper-chest area below the neck, with the blouse covering the bust.
-	Shoulders: approximately 8–10 cm of shoulder area visible on each side due to the short-sleeved blouse.
-	Arms: both arms are substantially visible from the short sleeves to the wrists; approximately 25–30 cm of arm length visible on each side.
-	Midriff: clearly visible between the blouse hem and saree waist, approximately 15–20 cm vertically; the navel/central abdomen area is visible.
-	Waist: approximately 8–12 cm of the side waist is visible on the right side, while the left side is partly covered by the saree drape.
-	Hands: both hands are fully visible, including fingers and wrists; the right hand rests near the waist and the left hand touches the saree near the thigh.
-	Legs: the legs are almost completely covered by the saree; only the lower foot/ankle area is partially visible beneath the saree hem.
-	Feet: both feet are mostly concealed by the flowing saree, with only a small portion visible near the bottom.
-	Saree coverage: maintain continuous fabric coverage from the waist downward, with natural folds and draping around the hips, thighs, knees, and legs.
-	Final Output: Convert the observations into ONE concise, natural, continuous AI image-generation prompt beginning with "Create a highly detailed photorealistic image of". Do not include headings, explanations, analysis, or category labels in the final prompt. Never invent unclear details. ${focus}`.trim(),
-},
-{
-	value: "Full_Analysis",
-	label: "Full Analysis",
-	text: (focus: string) => `
-	Recreate the reference image as accurately as possible.
-
-COMPOSITION:
-Describe exact framing, camera angle, subject position, crop and spatial relationships.
-
-SUBJECT:
-Describe the main subject in precise detail.
-
-FACE / IDENTITY:
-Describe facial structure, expression, eyes, hair, skin and distinguishing characteristics.
-
-POSE:
-Describe exact body orientation, head position, arms, hands, legs and gaze.
-
-CLOTHING:
-Describe every visible garment, color, material, texture, pattern and accessory.
-
-ENVIRONMENT:
-Describe the exact background, surroundings and objects.
-
-LIGHTING:
-Describe light direction, softness, intensity, shadows, highlights and color temperature.
-
-CAMERA:
-Describe camera height, perspective, focal length, depth of field and focus.
-
-COLOR:
-Preserve the reference image's color palette, contrast, saturation and white balance.
-
-MATERIAL / TEXTURE:
-Preserve realistic skin, hair, fabric and environmental textures.
-
-IMAGE STYLE:
-Describe whether the image is photorealistic, cinematic, editorial, etc.
-
-FIDELITY:
-Prioritize visual similarity to the reference over creative interpretation.
-Preserve the same composition, proportions, pose, facial expression, clothing,
-lighting, background and perspective.
-
-DO NOT:
-Do not change the pose, clothing, proportions, camera angle,
-background arrangement or lighting.
-Do not add or remove objects.
-No extra fingers, malformed hands, distorted anatomy, duplicate objects,
-text, watermark or artificial facial features.
-
-	Final Output: Convert the observations into ONE concise, natural, continuous AI image-generation prompt beginning with "Create a highly detailed photorealistic image of". Do not include headings, explanations, analysis, or category labels in the final prompt. Never invent unclear details. ${focus}`.trim(),
-},
 ];
+
+function applyFocusTemplate(template: string, focusText: string) {
+	return template.split("{{focus}}").join(focusText).split("${focus}").join(focusText).trim();
+}
+
+function toInstructionPreset(record: InstructionPresetRecord): InstructionPreset {
+	const template = record.textTemplate ?? record.textTemplateLines?.join("\n") ?? "";
+	return {
+		value: record.value,
+		label: record.label,
+		text: (focusText: string) => applyFocusTemplate(template, focusText),
+	};
+}
+
+async function loadInstructionPresets(sourceUrl: string) {
+	const response = await fetch(sourceUrl, { cache: "no-store" });
+	const records = await readResponseJson(response);
+
+	if (!response.ok) {
+		throw new Error(records?.error || `Failed to load instructions from ${sourceUrl}`);
+	}
+
+	const list = Array.isArray(records) ? records : Array.isArray(records?.instructions) ? records.instructions : [];
+	if (!list.length) {
+		throw new Error("Instruction file did not contain any presets.");
+	}
+
+	return list.map((record: Partial<InstructionPresetRecord>) => {
+		const template = record.textTemplate ?? record.textTemplateLines?.join("\n") ?? "";
+		if (!record.value || !record.label || !template) {
+			throw new Error("Instruction file contains an invalid preset.");
+		}
+
+		return toInstructionPreset({
+			value: record.value,
+			label: record.label,
+			textTemplate: template,
+		});
+	});
+}
 
 function loadUsage(): UsageRecord {
 	const today = new Date().toISOString().slice(0, 10);
@@ -323,7 +169,6 @@ export function ImageCloud({ onBackToDashboard, embedded = false }: { onBackToDa
 	const [category, setCategory] = useState("Prompt");
 	const [categorySuggestions, setCategorySuggestions] = useState<string[]>([]);
 	const [model, setModel] = useState<(typeof MODEL_OPTIONS)[number]>(MODEL_OPTIONS[1]);
-	const [promptFocus, setPromptFocus] = useState<PromptFocus>("full");
 	const [instruction, setInstruction] = useState("default");
 	const [result, setResult] = useState("");
 	const [loading, setLoading] = useState(false);
@@ -334,17 +179,14 @@ export function ImageCloud({ onBackToDashboard, embedded = false }: { onBackToDa
 	const [batchMode, setBatchMode] = useState(false);
 	const [batchResults, setBatchResults] = useState<BatchResult[]>([]);
 	const [batchProcessing, setBatchProcessing] = useState(false);
+	const [isDragging, setIsDragging] = useState(false);
 
-	const instructionPresets = createImagePromptInstructions();
-
-	const getInstructionText = () => {
-		const selectedPreset = instructionPresets.find((p) => p.value === instruction) || instructionPresets[0];
-		return selectedPreset.text(focusInstructions[promptFocus]);
-	};
+	const [instructionPresets, setInstructionPresets] = useState<InstructionPreset[]>(DEFAULT_INSTRUCTION_PRESETS);
 
 	const generatedPromptText = useMemo(() => {
-		return getInstructionText();
-	}, [promptFocus, instruction]);
+		const selectedPreset = instructionPresets.find((p) => p.value === instruction) || instructionPresets[0] || DEFAULT_INSTRUCTION_PRESETS[0];
+		return selectedPreset.text("");
+	}, [instruction, instructionPresets]);
 
 	useEffect(() => {
 		loadCategorySuggestions()
@@ -372,6 +214,20 @@ export function ImageCloud({ onBackToDashboard, embedded = false }: { onBackToDa
 	useEffect(() => {
 		localStorage.setItem(USAGE_STORAGE_KEY, JSON.stringify(usage));
 	}, [usage]);
+
+	useEffect(() => {
+		async function loadPresets() {
+			try {
+				const presets = await loadInstructionPresets(INSTRUCTION_SOURCE_URL);
+				setInstructionPresets(presets);
+			} catch (error) {
+				console.error("Error loading instruction presets:", error);
+				setInstructionPresets(DEFAULT_INSTRUCTION_PRESETS);
+			}
+		}
+
+		loadPresets();
+	}, [INSTRUCTION_SOURCE_URL]);
 
 	const startProgress = () => {
 		const startedAt = Date.now();
@@ -635,8 +491,30 @@ export function ImageCloud({ onBackToDashboard, embedded = false }: { onBackToDa
 		const incoming = Array.from(files || []);
 		const filtered = incoming.filter((file) => file.type.startsWith("image/"));
 		setSelectedFiles(filtered);
-		setImagePreviewsVisible(false);
+		setImagePreviewsVisible(true);
 		setError("");
+	};
+
+	const handleDragOver = (event: React.DragEvent<HTMLLabelElement>) => {
+		event.preventDefault();
+		event.stopPropagation();
+		setIsDragging(true);
+	};
+
+	const handleDragLeave = (event: React.DragEvent<HTMLLabelElement>) => {
+		event.preventDefault();
+		event.stopPropagation();
+		setIsDragging(false);
+	};
+
+	const handleDrop = (event: React.DragEvent<HTMLLabelElement>) => {
+		event.preventDefault();
+		event.stopPropagation();
+		setIsDragging(false);
+		const files = event.dataTransfer?.files;
+		if (files) {
+			handleFiles(files);
+		}
 	};
 
 	const onPasteFromKeyboard = (event: ClipboardEvent<HTMLDivElement>) => {
@@ -722,10 +600,22 @@ export function ImageCloud({ onBackToDashboard, embedded = false }: { onBackToDa
 				}}>
 					<section className="panel">
 						<h2>Reference image</h2>
-						<label className="dropzone" htmlFor="imageInput">
-							<span>
-								<strong>Choose an image</strong>
-								Click to browse or paste an image from your clipboard
+<label 
+						className="dropzone" 
+						htmlFor="imageInput" 
+						onDragOver={handleDragOver}
+						onDragEnter={handleDragOver}
+						onDragLeave={handleDragLeave}
+						onDrop={handleDrop}
+						style={{
+							borderColor: isDragging ? "#78e6c0" : undefined,
+							backgroundColor: isDragging ? "rgba(120, 230, 192, 0.1)" : undefined,
+							transition: "all 0.2s ease",
+						}}
+					>
+						<span>
+							<strong>{isDragging ? "Drop images here" : "Choose an image"}</strong>
+							{isDragging ? "Release to upload" : "Click to browse, drag-and-drop, or paste from clipboard"}
 							</span>
 							<input id="imageInput" type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={(event) => handleFiles(event.currentTarget.files)} />
 						</label>
@@ -766,22 +656,6 @@ export function ImageCloud({ onBackToDashboard, embedded = false }: { onBackToDa
 							))}
 						</select>
 
-						<label className="field-label" htmlFor="promptFocus">Prompt focus</label>
-						<select id="promptFocus" value={promptFocus} onChange={(event) => setPromptFocus(event.currentTarget.value as PromptFocus)}>
-							<option value="full">Full image prompt</option>
-							<option value="dress">Dress detail</option>
-							<option value="pose">Pose detail</option>
-							<option value="face">Face detail</option>
-							<option value="hair">Hair detail</option>
-							<option value="accessories">Accessories detail</option>
-							<option value="background">Background detail</option>
-							<option value="lighting">Lighting detail</option>
-							<option value="camera">Camera detail</option>
-							<option value="composition">Composition detail</option>
-							<option value="colors">Color palette</option>
-							<option value="style">Style and quality</option>
-						</select>
-
 						<label className="field-label" htmlFor="model">Model</label>
 						<select id="model" value={model} onChange={(event) => setModel(event.currentTarget.value as (typeof MODEL_OPTIONS)[number])}>
 							{MODEL_OPTIONS.map((option) => (
@@ -789,15 +663,17 @@ export function ImageCloud({ onBackToDashboard, embedded = false }: { onBackToDa
 							))}
 						</select>
 
+					<div style={{ display: "flex", gap: "20px", marginBottom: "16px" }}>
 						<label className="private-mode-control" htmlFor="privateMode">
 							<span>Private mode</span>
 							<input id="privateMode" type="checkbox" role="switch" checked={privateMode} onChange={(event) => setPrivateMode(event.currentTarget.checked)} />
 						</label>
 
-					<label className="private-mode-control" htmlFor="batchMode">
-						<span>Batch process</span>
-						<input id="batchMode" type="checkbox" role="switch" checked={batchMode} onChange={(event) => setBatchMode(event.currentTarget.checked)} disabled={batchProcessing} />
-					</label>
+						<label className="private-mode-control" htmlFor="batchMode">
+							<span>Batch process</span>
+							<input id="batchMode" type="checkbox" role="switch" checked={batchMode} onChange={(event) => setBatchMode(event.currentTarget.checked)} disabled={batchProcessing} />
+						</label>
+					</div>
 
 					<button type="button" onClick={batchMode ? handleBatchProcess : handleGenerate} disabled={loading || batchProcessing}>
 						{loading ? "Generating..." : batchProcessing ? "Processing batch..." : batchMode ? "Batch Process" : "Generate AI Prompt"}

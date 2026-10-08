@@ -241,17 +241,67 @@ small,
 	cursor: pointer;
 	display: flex;
 	font-size: 0.8rem;
-	gap: 8px;
+	gap: 12px;
 	padding-top: 6px;
 	justify-content: flex-start;
 	margin-top: 18px;
+	user-select: none;
 }
 
-#privateMode {
-	accent-color: #78e6c0;
-	height: 16px;
+#privateMode,
+#batchMode {
+	appearance: none;
+	-webkit-appearance: none;
+	-moz-appearance: none;
+	width: 44px;
+	height: 24px;
+	background: #2a3342;
+	border: 1px solid #435063;
+	border-radius: 12px;
+	cursor: pointer;
 	margin: 0;
-	width: 16px;
+	padding: 0;
+	transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+	position: relative;
+	flex-shrink: 0;
+}
+
+#privateMode:hover,
+#batchMode:hover {
+	background: #354150;
+	border-color: #78e6c0;
+}
+
+#privateMode:checked,
+#batchMode:checked {
+	background: linear-gradient(135deg, #78e6c0 0%, #5dd9ad 100%);
+	border-color: #78e6c0;
+	box-shadow: 0 0 12px rgba(120, 230, 192, 0.3);
+}
+
+#privateMode:checked::after,
+#batchMode:checked::after {
+	content: "✓";
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	color: #082019;
+	font-size: 14px;
+	font-weight: bold;
+	line-height: 1;
+}
+
+#privateMode:focus,
+#batchMode:focus {
+	outline: 2px solid #78e6c0;
+	outline-offset: 2px;
+}
+
+#privateMode:disabled,
+#batchMode:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
 }
 
 .panel > button {
