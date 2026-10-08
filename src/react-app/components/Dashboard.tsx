@@ -2,38 +2,12 @@ import { useAuth } from "../context/AuthContext";
 import { ImageCloud } from "./ImageCloud";
 import { ImagePrompt } from "./ImagePrompt";
 import { ImagePromptHistory } from "./ImagePromptHistory";
+import { InstructionManagement } from "./InstructionManagement";
 import "../styles/Dashboard.css";
 
-const navSections = [
-	{
-		label: "Overview",
-		items: [
-			{ name: "Dashboard", active: true },
-			{ name: "Analytics" },
-			{ name: "Reports" },
-		],
-	},
-	{
-		label: "Manage",
-		items: [
-			{ name: "Users" },
-			{ name: "Teams" },
-			{ name: "Permissions" },
-		],
-	},
-	{
-		label: "Settings",
-		items: [
-			{ name: "Profile" },
-			{ name: "Security" },
-			{ name: "Billing" },
-		],
-	},
-];
-
 type DashboardProps = {
-	activeView: "dashboard" | "image-prompt" | "image-cloud" | "history";
-	onNavigate: (view: "dashboard" | "image-prompt" | "image-cloud" | "history") => void;
+	activeView: "dashboard" | "image-prompt" | "image-cloud" | "history" | "instruction";
+	onNavigate: (view: "dashboard" | "image-prompt" | "image-cloud" | "history" | "instruction") => void;
 };
 
 export function Dashboard({ activeView, onNavigate }: DashboardProps) {
@@ -85,23 +59,18 @@ export function Dashboard({ activeView, onNavigate }: DashboardProps) {
 					</button>
 					<div className="nav-item nav-item--dropdown">
 						<button type="button" className="nav-trigger">
-							<span>Products</span>
+							<span>Master</span>
 						</button>
 						<div className="dropdown-panel">
-							{navSections.map((section) => (
-								<div key={section.label} className="dropdown-section">
-									<span className="dropdown-title">{section.label}</span>
-									{section.items.map((item) => (
-										<button
-											key={item.name}
-											type="button"
-											className={item.active ? "dropdown-link active" : "dropdown-link"}
-										>
-											{item.name}
-										</button>
-									))}
-								</div>
-							))}
+							<div className="dropdown-section">
+								<button
+									type="button"
+									className="dropdown-link"
+									onClick={() => onNavigate("instruction")}
+								>
+									Instruction Management
+								</button>
+							</div>
 						</div>
 					</div>
 				</nav>
@@ -152,11 +121,15 @@ export function Dashboard({ activeView, onNavigate }: DashboardProps) {
 					<div className="dashboard-card dashboard-card--full">
 						<ImageCloud embedded onBackToDashboard={() => onNavigate("dashboard")} />
 					</div>
-				) : (
-					<div className="dashboard-card dashboard-card--full">
-						<ImagePromptHistory onBackToDashboard={() => onNavigate("dashboard")} embedded />
-					</div>
-				)}
+			) : activeView === "history" ? (
+				<div className="dashboard-card dashboard-card--full">
+					<ImagePromptHistory onBackToDashboard={() => onNavigate("dashboard")} embedded />
+				</div>
+			) : activeView === "instruction" ? (
+				<div className="dashboard-card dashboard-card--full">
+					<InstructionManagement />
+				</div>
+			) : null}
 			</div>
 		</div>
 	);
