@@ -22,6 +22,8 @@ export function InstructionManagement() {
 	const [showForm, setShowForm] = useState(false);
 	const [editingId, setEditingId] = useState<number | null>(null);
 	const [deleteConfirm, setDeleteConfirm] = useState<{ show: boolean; id?: number }>({ show: false });
+	const [showPreview, setShowPreview] = useState(false);
+	const [previewData, setPreviewData] = useState<Instruction | null>(null);
 	const isLocalMode = ENVIRONMENT === "local";
 	const [formData, setFormData] = useState<EditingInstruction>({
 		value: "",
@@ -356,7 +358,10 @@ export function InstructionManagement() {
 												type="button"
 												className="btn-preview"
 												title={inst.prompt_instruction}
-												onClick={() => alert(inst.prompt_instruction)}
+												onClick={() => {
+													setShowPreview(true);
+													setPreviewData(inst);
+												}}
 											>
 												View
 											</button>
@@ -398,6 +403,20 @@ export function InstructionManagement() {
 							</button>
 							<button type="button" className="btn-delete" onClick={confirmDelete}>
 								Delete
+							</button>
+						</div>
+					</div>
+				</div>
+			)}
+
+			{showPreview && previewData && (
+				<div className="modal-overlay" onClick={() => setShowPreview(false)}>
+					<div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
+						<h3>{previewData.label}</h3>
+						<textarea readOnly value={previewData.prompt_instruction} className="preview-textarea" />
+						<div className="modal-actions">
+							<button type="button" className="btn-cancel" onClick={() => setShowPreview(false)}>
+								Close
 							</button>
 						</div>
 					</div>
