@@ -24,10 +24,11 @@ const MODEL_OPTIONS = [
 	"@cf/mistralai/mistral-small-3.1-24b-instruct",
 ] as const;
 
-const INSTRUCTION_SOURCE_URL =
-	import.meta.env.VITE_IMAGE_CLOUD_INSTRUCTIONS_URL?.trim() || "/instructions/image-cloud/instructions.json";
-
 const ENVIRONMENT = import.meta.env.VITE_ENVIRONMENT?.trim() || "production";
+
+const INSTRUCTION_SOURCE_URL = ENVIRONMENT === "local" 
+	? "/instructions/image-cloud/instructions.json"
+	: "/api/prompt-instruction";
 
 type InstructionPreset = {
 	value: string;
@@ -41,24 +42,6 @@ type InstructionPresetRecord = {
 	textTemplate?: string;
 	textTemplateLines?: string[];
 };
-
-const DEFAULT_INSTRUCTION_PRESETS: InstructionPreset[] = [
-	{
-		value: "default",
-		label: "Default",
-		text: (focusText: string) => `Analyze the reference image internally and generate one concise, natural AI image-generation prompt that recreates the image as accurately as possible. ${focusText}`.trim(),
-	},
-	{
-		value: "detailed",
-		label: "More Detail Way",
-		text: (focusText: string) => `Create a highly detailed photorealistic image matching the reference image as closely as possible. ${focusText}`.trim(),
-	},
-	{
-		value: "category-wise",
-		label: "Category Wise",
-		text: (focusText: string) => `Analyze the reference image internally and generate one highly accurate AI image-generation prompt by examining the image using the following categories. ${focusText}`.trim(),
-	},
-];
 
 function applyFocusTemplate(template: string, focusText: string) {
 	return template.split("{{focus}}").join(focusText).split("${focus}").join(focusText).trim();
@@ -74,14 +57,24 @@ function toInstructionPreset(record: InstructionPresetRecord): InstructionPreset
 }
 
 async function loadInstructionPresets(sourceUrl: string) {
+	console.log("loadInstructionPresets: Fetching from", sourceUrl);
 	const response = await fetch(sourceUrl, { cache: "no-store" });
-	const records = await readResponseJson(response);
-
+	console.log("loadInstructionPresets: Response status", response.status);
+	
 	if (!response.ok) {
-		throw new Error(records?.error || `Failed to load instructions from ${sourceUrl}`);
+		throw new Error(`Failed to fetch instructions from ${sourceUrl}: ${response.status} ${response.statusText}`);
+	}
+
+	const records = await readResponseJson(response);
+	console.log("loadInstructionPresets: Parsed records", records);
+	
+	if (records?.error) {
+		throw new Error(records.error.message || "Failed to parse instructions file");
 	}
 
 	const list = Array.isArray(records) ? records : Array.isArray(records?.instructions) ? records.instructions : [];
+	console.log("loadInstructionPresets: Extracted list", list);
+	
 	if (!list.length) {
 		throw new Error("Instruction file did not contain any presets.");
 	}
@@ -89,7 +82,7 @@ async function loadInstructionPresets(sourceUrl: string) {
 	return list.map((record: Partial<InstructionPresetRecord>) => {
 		const template = record.textTemplate ?? record.textTemplateLines?.join("\n") ?? "";
 		if (!record.value || !record.label || !template) {
-			throw new Error("Instruction file contains an invalid preset.");
+			throw new Error(`Invalid preset: missing value, label, or template. Got: ${JSON.stringify(record)}`);
 		}
 
 		return toInstructionPreset({
@@ -147,9 +140,12 @@ function fileToDataUrl(file: File) {
 
 async function readResponseJson(response: Response) {
 	try {
-		return await response.json();
-	} catch {
-		return { error: { message: await response.text() } };
+		const text = await response.text();
+		console.log("Response text:", text.substring(0, 100));
+		return JSON.parse(text);
+	} catch (err) {
+		console.error("Failed to parse response as JSON:", err);
+		return { error: { message: String(err) } };
 	}
 }
 
@@ -198,7 +194,7 @@ export function ImageCloud({ onBackToDashboard, embedded = false }: { onBackToDa
 	const [category, setCategory] = useState("Prompt");
 	const [categorySuggestions, setCategorySuggestions] = useState<string[]>([]);
 	const [model, setModel] = useState<(typeof MODEL_OPTIONS)[number]>(MODEL_OPTIONS[1]);
-	const [instruction, setInstruction] = useState("default");
+	const [instruction, setInstruction] = useState("");
 	const [result, setResult] = useState("");
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState("");
@@ -210,11 +206,11 @@ export function ImageCloud({ onBackToDashboard, embedded = false }: { onBackToDa
 	const [batchProcessing, setBatchProcessing] = useState(false);
 	const [isDragging, setIsDragging] = useState(false);
 
-	const [instructionPresets, setInstructionPresets] = useState<InstructionPreset[]>(DEFAULT_INSTRUCTION_PRESETS);
+	const [instructionPresets, setInstructionPresets] = useState<InstructionPreset[]>([]);
 
 	const generatedPromptText = useMemo(() => {
-		const selectedPreset = instructionPresets.find((p) => p.value === instruction) || instructionPresets[0] || DEFAULT_INSTRUCTION_PRESETS[0];
-		return selectedPreset.text("");
+		const selectedPreset = instructionPresets.find((p) => p.value === instruction) || instructionPresets[0];
+		return selectedPreset ? selectedPreset.text("") : "";
 	}, [instruction, instructionPresets]);
 
 	useEffect(() => {
@@ -247,18 +243,22 @@ export function ImageCloud({ onBackToDashboard, embedded = false }: { onBackToDa
 	useEffect(() => {
 		async function loadPresets() {
 			try {
-				if (ENVIRONMENT === "local") {
-					console.log("Loading instructions from database (local environment)");
-					const presets = await loadInstructionsFromDatabase();
-					setInstructionPresets(presets);
-				} else {
-					console.log("Loading instructions from remote file");
-					const presets = await loadInstructionPresets(INSTRUCTION_SOURCE_URL);
-					setInstructionPresets(presets);
+				console.log("ENVIRONMENT:", ENVIRONMENT);
+				console.log("INSTRUCTION_SOURCE_URL:", INSTRUCTION_SOURCE_URL);
+
+				const presets = ENVIRONMENT === "local"
+					? await loadInstructionPresets(INSTRUCTION_SOURCE_URL)
+					: await loadInstructionsFromDatabase();
+
+				console.log("Loaded presets:", presets);
+				setInstructionPresets(presets);
+				if (presets.length > 0) {
+					console.log("Setting first instruction:", presets[0].value);
+					setInstruction(presets[0].value);
 				}
 			} catch (error) {
 				console.error("Error loading instruction presets:", error);
-				setInstructionPresets(DEFAULT_INSTRUCTION_PRESETS);
+				setInstructionPresets([]);
 			}
 		}
 
