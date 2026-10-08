@@ -272,6 +272,7 @@ h1 {
 
 .form-group:nth-child(2) {
 	min-height: 0;
+	flex: 1;
 }
 
 label {
@@ -298,6 +299,8 @@ textarea {
 	min-height: 200px;
 	resize: vertical;
 	line-height: 1.45;
+	flex: 1;
+	overflow-y: auto;
 }
 
 input:focus,
