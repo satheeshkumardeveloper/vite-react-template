@@ -27,6 +27,8 @@ const MODEL_OPTIONS = [
 const INSTRUCTION_SOURCE_URL =
 	import.meta.env.VITE_IMAGE_CLOUD_INSTRUCTIONS_URL?.trim() || "/instructions/image-cloud/instructions.json";
 
+const ENVIRONMENT = import.meta.env.VITE_ENVIRONMENT?.trim() || "production";
+
 type InstructionPreset = {
 	value: string;
 	label: string;
@@ -94,6 +96,33 @@ async function loadInstructionPresets(sourceUrl: string) {
 			value: record.value,
 			label: record.label,
 			textTemplate: template,
+		});
+	});
+}
+
+async function loadInstructionsFromDatabase() {
+	const response = await fetch("/api/prompt-instruction", { cache: "no-store" });
+	const records = await readResponseJson(response);
+
+	if (!response.ok) {
+		throw new Error(records?.error || "Failed to load instructions from database");
+	}
+
+	const list = Array.isArray(records) ? records : [];
+	if (!list.length) {
+		throw new Error("No instructions found in database.");
+	}
+
+	return list.map((record: any) => {
+		const { value, label, prompt_instruction } = record;
+		if (!value || !label || !prompt_instruction) {
+			throw new Error("Database instruction record is missing required fields.");
+		}
+
+		return toInstructionPreset({
+			value,
+			label,
+			textTemplate: prompt_instruction,
 		});
 	});
 }
@@ -218,8 +247,15 @@ export function ImageCloud({ onBackToDashboard, embedded = false }: { onBackToDa
 	useEffect(() => {
 		async function loadPresets() {
 			try {
-				const presets = await loadInstructionPresets(INSTRUCTION_SOURCE_URL);
-				setInstructionPresets(presets);
+				if (ENVIRONMENT === "local") {
+					console.log("Loading instructions from database (local environment)");
+					const presets = await loadInstructionsFromDatabase();
+					setInstructionPresets(presets);
+				} else {
+					console.log("Loading instructions from remote file");
+					const presets = await loadInstructionPresets(INSTRUCTION_SOURCE_URL);
+					setInstructionPresets(presets);
+				}
 			} catch (error) {
 				console.error("Error loading instruction presets:", error);
 				setInstructionPresets(DEFAULT_INSTRUCTION_PRESETS);
