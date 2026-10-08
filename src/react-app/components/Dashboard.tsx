@@ -26,7 +26,7 @@ export function Dashboard({ activeView, onNavigate }: DashboardProps) {
 					<div className="brand-mark">U</div>
 					<div>
 						<span className="eyebrow">Workspace</span>
-						<h1>Welcome to Dashboard</h1>
+						<h1>Welcome</h1>
 					</div>
 				</div>
 
@@ -66,6 +66,13 @@ export function Dashboard({ activeView, onNavigate }: DashboardProps) {
 					>
 						<span>Files</span>
 					</button>
+					<button
+						type="button"
+						className={activeView === "clipboard" ? "nav-item nav-item--active" : "nav-item"}
+						onClick={() => onNavigate("clipboard")}
+					>
+						<span>Clipboard</span>
+					</button>
 					<div className="nav-item nav-item--dropdown">
 						<button type="button" className="nav-trigger">
 							<span>Master</span>
@@ -79,22 +86,12 @@ export function Dashboard({ activeView, onNavigate }: DashboardProps) {
 								>
 									Instruction Management
 								</button>
-								<button
-									type="button"
-									className="dropdown-link"
-									onClick={() => onNavigate("clipboard")}
-								>
-									Clipboard
-								</button>
 							</div>
 						</div>
 					</div>
 				</nav>
 
 				<div className="user-info">
-					<span>
-						Logged in as: <strong>{username}</strong>
-					</span>
 					<button onClick={handleLogout} className="logout-button">
 						Logout
 					</button>
