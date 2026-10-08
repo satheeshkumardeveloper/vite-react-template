@@ -316,4 +316,116 @@ app.post("/api/image-prompt-vision", async (c) => {
 	}
 });
 
+// GET all prompt instructions - fetch from database
+app.get("/api/prompt-instruction", async (c) => {
+	try {
+		const db = c.env.DB as D1Database;
+		if (!db) {
+			return c.json({ error: "D1 binding DB is missing in Worker environment." }, 500);
+		}
+
+		const { results } = await db
+			.prepare(
+				"SELECT id, value, label, prompt_instruction, description FROM prompt_instruction ORDER BY id ASC",
+			)
+			.all();
+
+		return c.json(results || []);
+	} catch (error) {
+		return c.json({ error: error instanceof Error ? error.message : String(error) }, 500);
+	}
+});
+
+// POST create new prompt instruction
+app.post("/api/prompt-instruction", async (c) => {
+	try {
+		const db = c.env.DB as D1Database;
+		if (!db) {
+			return c.json({ error: "D1 binding DB is missing in Worker environment." }, 500);
+		}
+
+		const body = await c.req.json();
+		const { label, prompt_instruction, description } = body as Record<string, unknown>;
+		const value = body?.value;
+
+		if (!value || !label || !prompt_instruction) {
+			return c.json({ error: "value, label, and prompt_instruction are required" }, 400);
+		}
+
+		const created = await db
+			.prepare(
+				"INSERT INTO prompt_instruction (value, label, prompt_instruction, description) VALUES (?, ?, ?, ?) RETURNING id, value, label, prompt_instruction, description",
+			)
+			.bind(String(value).trim(), String(label).trim(), String(prompt_instruction).trim(), description ? String(description).trim() : null)
+			.first();
+
+		return c.json(created, 201);
+	} catch (error) {
+		const errorMsg = error instanceof Error ? error.message : String(error);
+		if (errorMsg.includes("UNIQUE constraint failed")) {
+			return c.json({ error: "An instruction with this value already exists" }, 409);
+		}
+		return c.json({ error: errorMsg }, 500);
+	}
+});
+
+// PUT update prompt instruction
+app.put("/api/prompt-instruction/:id", async (c) => {
+	try {
+		const db = c.env.DB as D1Database;
+		if (!db) {
+			return c.json({ error: "D1 binding DB is missing in Worker environment." }, 500);
+		}
+
+		const id = Number(c.req.param("id"));
+		const body = await c.req.json();
+		const { label, prompt_instruction, description } = body as Record<string, unknown>;
+
+		if (!label || !prompt_instruction) {
+			return c.json({ error: "label and prompt_instruction are required" }, 400);
+		}
+
+		const existing = await db.prepare("SELECT id FROM prompt_instruction WHERE id = ?").bind(id).first();
+
+		if (!existing) {
+			return c.json({ error: "Prompt instruction not found" }, 404);
+		}
+
+		const updated = await db
+			.prepare(
+				"UPDATE prompt_instruction SET label = ?, prompt_instruction = ?, description = ? WHERE id = ? RETURNING id, value, label, prompt_instruction, description",
+			)
+			.bind(String(label).trim(), String(prompt_instruction).trim(), description ? String(description).trim() : null, id)
+			.first();
+
+		return c.json(updated);
+	} catch (error) {
+		return c.json({ error: error instanceof Error ? error.message : String(error) }, 500);
+	}
+});
+
+// DELETE prompt instruction
+app.delete("/api/prompt-instruction/:id", async (c) => {
+	try {
+		const db = c.env.DB as D1Database;
+		if (!db) {
+			return c.json({ error: "D1 binding DB is missing in Worker environment." }, 500);
+		}
+
+		const id = Number(c.req.param("id"));
+
+		const existing = await db.prepare("SELECT id FROM prompt_instruction WHERE id = ?").bind(id).first();
+
+		if (!existing) {
+			return c.json({ error: "Prompt instruction not found" }, 404);
+		}
+
+		await db.prepare("DELETE FROM prompt_instruction WHERE id = ?").bind(id).run();
+
+		return c.json({ success: true, id });
+	} catch (error) {
+		return c.json({ error: error instanceof Error ? error.message : String(error) }, 500);
+	}
+});
+
 export default app;
