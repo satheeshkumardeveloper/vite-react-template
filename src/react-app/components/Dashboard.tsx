@@ -3,11 +3,12 @@ import { ImageCloud } from "./ImageCloud";
 import { ImagePrompt } from "./ImagePrompt";
 import { ImagePromptHistory } from "./ImagePromptHistory";
 import { InstructionManagement } from "./InstructionManagement";
+import { Clipboard } from "./Clipboard";
 import "../styles/Dashboard.css";
 
 type DashboardProps = {
-	activeView: "dashboard" | "image-prompt" | "image-cloud" | "history" | "instruction";
-	onNavigate: (view: "dashboard" | "image-prompt" | "image-cloud" | "history" | "instruction") => void;
+	activeView: "dashboard" | "image-prompt" | "image-cloud" | "history" | "instruction" | "clipboard";
+	onNavigate: (view: "dashboard" | "image-prompt" | "image-cloud" | "history" | "instruction" | "clipboard") => void;
 };
 
 export function Dashboard({ activeView, onNavigate }: DashboardProps) {
@@ -70,6 +71,13 @@ export function Dashboard({ activeView, onNavigate }: DashboardProps) {
 								>
 									Instruction Management
 								</button>
+								<button
+									type="button"
+									className="dropdown-link"
+									onClick={() => onNavigate("clipboard")}
+								>
+									Clipboard
+								</button>
 							</div>
 						</div>
 					</div>
@@ -128,6 +136,10 @@ export function Dashboard({ activeView, onNavigate }: DashboardProps) {
 			) : activeView === "instruction" ? (
 				<div className="dashboard-card dashboard-card--full">
 					<InstructionManagement />
+				</div>
+			) : activeView === "clipboard" ? (
+				<div className="dashboard-card dashboard-card--full">
+				<Clipboard embedded />
 				</div>
 			) : null}
 			</div>

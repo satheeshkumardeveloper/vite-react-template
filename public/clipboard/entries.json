@@ -1,0 +1,23 @@
+[
+  {
+    "id": 1,
+    "title": "API Response",
+    "content": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+    "updated_at": "2026-08-27T10:30:00Z",
+    "order": 3
+  },
+  {
+    "id": 2,
+    "title": "Quick Note",
+    "content": "Remember to update the documentation tomorrow. Check the API endpoints and verify all integration tests pass before deployment.",
+    "updated_at": "2026-08-27T09:15:00Z",
+    "order": 2
+  },
+  {
+    "id": 3,
+    "title": "Code Snippet",
+    "content": "const hello = () => console.log(\"Hello, world!\");\nhello();",
+    "updated_at": "2026-08-27T08:45:00Z",
+    "order": 1
+  }
+]
