@@ -4,11 +4,12 @@ import { ImagePrompt } from "./ImagePrompt";
 import { ImagePromptHistory } from "./ImagePromptHistory";
 import { InstructionManagement } from "./InstructionManagement";
 import { Clipboard } from "./Clipboard";
+import { Files } from "./Files";
 import "../styles/Dashboard.css";
 
 type DashboardProps = {
-	activeView: "dashboard" | "image-prompt" | "image-cloud" | "history" | "instruction" | "clipboard";
-	onNavigate: (view: "dashboard" | "image-prompt" | "image-cloud" | "history" | "instruction" | "clipboard") => void;
+	activeView: "dashboard" | "image-prompt" | "image-cloud" | "history" | "instruction" | "clipboard" | "files";
+	onNavigate: (view: "dashboard" | "image-prompt" | "image-cloud" | "history" | "instruction" | "clipboard" | "files") => void;
 };
 
 export function Dashboard({ activeView, onNavigate }: DashboardProps) {
@@ -57,6 +58,13 @@ export function Dashboard({ activeView, onNavigate }: DashboardProps) {
 						onClick={() => onNavigate("history")}
 					>
 						<span>History</span>
+					</button>
+					<button
+						type="button"
+						className={activeView === "files" ? "nav-item nav-item--active" : "nav-item"}
+						onClick={() => onNavigate("files")}
+					>
+						<span>Files</span>
 					</button>
 					<div className="nav-item nav-item--dropdown">
 						<button type="button" className="nav-trigger">
@@ -140,6 +148,10 @@ export function Dashboard({ activeView, onNavigate }: DashboardProps) {
 			) : activeView === "clipboard" ? (
 				<div className="dashboard-card dashboard-card--full">
 				<Clipboard embedded />
+				</div>
+			) : activeView === "files" ? (
+				<div className="dashboard-card dashboard-card--full">
+					<Files embedded />
 				</div>
 			) : null}
 			</div>
