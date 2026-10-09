@@ -45,7 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 	const login = (inputUsername: string, inputPassword: string): boolean => {
 		// Static credentials
-		if (inputUsername === "admin" && inputPassword === "admin") {
+		if (inputUsername === "admin" && inputPassword === "2026") {
 			setIsAuthenticated(true);
 			setUsername(inputUsername);
 			persistSession(true, inputUsername);

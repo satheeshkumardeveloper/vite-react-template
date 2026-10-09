@@ -53,7 +53,6 @@ export function Login() {
 						Login
 					</button>
 				</form>
-				<p className="hint">Demo credentials - Username: admin, Password: admin</p>
 			</div>
 		</div>
 	);

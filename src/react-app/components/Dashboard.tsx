@@ -13,7 +13,7 @@ type DashboardProps = {
 };
 
 export function Dashboard({ activeView, onNavigate }: DashboardProps) {
-	const { logout, username } = useAuth();
+	const { logout } = useAuth();
 
 	const handleLogout = () => {
 		logout();
