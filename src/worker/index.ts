@@ -550,4 +550,115 @@ app.delete("/api/clipboard/:id", async (c) => {
 	}
 });
 
+app.get("/api/files", async (c) => {
+	try {
+		const r2 = c.env.IMAGES as R2Bucket;
+		if (!r2) {
+			return c.json({ error: "R2 binding IMAGES is missing in Worker environment." }, 500);
+		}
+
+		const prefix = (c.req.query("prefix") || "").trim();
+		const listed = await r2.list({ prefix: prefix || undefined });
+		const objects = (listed.objects || []).map((obj) => ({
+			Key: obj.key,
+			LastModified: obj.uploaded,
+			ETag: obj.httpEtag || obj.etag || null,
+			Size: obj.size,
+			StorageClass: obj.httpMetadata?.contentType ? "STANDARD" : "STANDARD",
+		}));
+
+		return c.json(objects);
+	} catch (error) {
+		return c.json({ error: error instanceof Error ? error.message : String(error) }, 500);
+	}
+});
+
+app.post("/api/files/upload", async (c) => {
+	try {
+		const r2 = c.env.IMAGES as R2Bucket;
+		if (!r2) {
+			return c.json({ error: "R2 binding IMAGES is missing in Worker environment." }, 500);
+		}
+
+		const formData = await c.req.formData();
+		const prefix = (formData.get("prefix")?.toString() || "").trim();
+		const files = formData.getAll("files").filter((item): item is File => item instanceof File);
+
+		if (!files.length) {
+			return c.json({ error: "At least one file is required." }, 400);
+		}
+
+		const uploadedKeys: string[] = [];
+		for (const file of files) {
+			const relativePath = String((file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name || "upload.bin")
+				.replace(/\\/g, "/")
+				.replace(/^\/+/, "")
+				.trim();
+			const normalizedPath = relativePath === "" ? "upload.bin" : relativePath;
+			const key = prefix ? `${prefix.replace(/^\/+|\/+$/g, "")}/${normalizedPath.replace(/^\/+/, "")}` : normalizedPath.replace(/^\/+/, "");
+			await r2.put(key, file.stream(), {
+				httpMetadata: {
+					contentType: file.type || "application/octet-stream",
+				},
+			});
+			uploadedKeys.push(key);
+		}
+
+		return c.json({ success: true, uploaded: uploadedKeys });
+	} catch (error) {
+		return c.json({ error: error instanceof Error ? error.message : String(error) }, 500);
+	}
+});
+
+app.delete("/api/files", async (c) => {
+	try {
+		const r2 = c.env.IMAGES as R2Bucket;
+		if (!r2) {
+			return c.json({ error: "R2 binding IMAGES is missing in Worker environment." }, 500);
+		}
+
+		const body = await c.req.json().catch(() => ({}));
+		const keys = Array.isArray(body?.keys) ? (body.keys as unknown[]).map((key: unknown) => String(key)) : []; 
+		if (!keys.length) {
+			return c.json({ error: "At least one key is required." }, 400);
+		}
+
+		await Promise.all(keys.map((key: string) => r2.delete(key)));
+		return c.json({ success: true, deleted: keys.length });
+	} catch (error) {
+		return c.json({ error: error instanceof Error ? error.message : String(error) }, 500);
+	}
+});
+
+app.get("/api/files/download", async (c) => {
+	try {
+		const r2 = c.env.IMAGES as R2Bucket;
+		if (!r2) {
+			return c.json({ error: "R2 binding IMAGES is missing in Worker environment." }, 500);
+		}
+
+		const key = (c.req.query("key") || "").trim();
+		if (!key) {
+			return c.json({ error: "Missing file key." }, 400);
+		}
+
+		const object = await r2.get(key);
+		if (!object) {
+			return c.text("Not found", 404);
+		}
+
+		const download = c.req.query("download") === "1";
+		const fileName = key.split("/").pop() || "download";
+		return new Response(object.body, {
+			headers: {
+				"content-type": object.httpMetadata?.contentType || "application/octet-stream",
+				"content-disposition": download ? `attachment; filename="${fileName}"` : `inline; filename="${fileName}"`,
+				"cache-control": "no-store",
+			},
+		});
+	} catch (error) {
+		return c.json({ error: error instanceof Error ? error.message : String(error) }, 500);
+	}
+});
+
 export default app;

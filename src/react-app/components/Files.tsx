@@ -1,6 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { DeleteObjectCommand, GetObjectCommand, ListObjectsV2Command, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import JSZip from "jszip";
 import "../styles/Files.css";
 
@@ -70,7 +68,11 @@ const SAMPLE_MOCK_FILES: FileRecord[] = [
 	},
 ];
 
-const SYSTEM_MODE: 0 | 1 = 0;
+const SYSTEM_MODE: 0 | 1 =
+	typeof window !== "undefined" && /^(localhost|127\.0\.0\.1|0\.0\.0\.0)$/.test(window.location.hostname)
+		? 0
+		: 1;
+const FILE_API_BASE = "/api/files";
 
 function getTimestampForFileName(dateValue = new Date()) {
 	const year = dateValue.getFullYear();
@@ -222,36 +224,6 @@ export function Files({ embedded }: FilesProps) {
 		statusRef.current = message;
 	};
 
-	const getConfig = () => {
-		const endpoint = settings.endpoint.trim();
-		const bucket = settings.bucket.trim();
-		const region = settings.region.trim() || "auto";
-		const prefix = settings.prefix.trim();
-		const accessKeyId = settings.accessKey.trim();
-		const secretAccessKey = settings.secretKey.trim();
-		if (!endpoint || !bucket || !accessKeyId || !secretAccessKey) {
-			throw new Error("Endpoint, Bucket, Access Key, and Secret Key are required.");
-		}
-		if (secretAccessKey.startsWith("cfat_")) {
-			throw new Error("Invalid credential type: cfat_ token is a Cloudflare API token, not an R2 S3 Secret Access Key.");
-		}
-		return {
-			endpoint,
-			bucket,
-			region,
-			prefix,
-			credentials: { accessKeyId, secretAccessKey },
-		};
-	};
-
-	const getClient = (cfg: ReturnType<typeof getConfig>) =>
-		new S3Client({
-			region: cfg.region,
-			endpoint: cfg.endpoint,
-			credentials: cfg.credentials,
-			forcePathStyle: true,
-		});
-
 	const folderInputProps = {
 		webkitdirectory: "",
 		directory: "",
@@ -310,17 +282,13 @@ export function Files({ embedded }: FilesProps) {
 		});
 	};
 
-	const getDownloadUrl = async (cfg: ReturnType<typeof getConfig>, key: string, forceDownload = false) => {
+	const getDownloadUrl = async (key: string, forceDownload = false) => {
 		if (SYSTEM_MODE === 0) {
 			return `data:text/plain,Mock%20Download:%20${encodeURIComponent(key)}`;
 		}
-		const client = getClient(cfg);
-		const command = new GetObjectCommand({
-			Bucket: cfg.bucket,
-			Key: key,
-			ResponseContentDisposition: forceDownload ? `attachment; filename="${encodeURIComponent(key.split("/").pop() || "download")}"` : undefined,
-		});
-		return getSignedUrl(client, command, { expiresIn: 3600 });
+		const params = new URLSearchParams({ key });
+		if (forceDownload) params.set("download", "1");
+		return `${FILE_API_BASE}/download?${params.toString()}`;
 	};
 
 	const getObjectKeyFromFile = (file: File, prefix: string) => {
@@ -415,15 +383,12 @@ export function Files({ embedded }: FilesProps) {
 			if (SYSTEM_MODE === 0) {
 				result = JSON.parse(JSON.stringify(SAMPLE_MOCK_FILES));
 			} else {
-				const cfg = getConfig();
-				const client = getClient(cfg);
-				const response = await client.send(
-					new ListObjectsV2Command({
-						Bucket: cfg.bucket,
-						Prefix: cfg.prefix || undefined,
-					})
-				);
-				result = (response.Contents || []).map((item) => ({ ...item, Key: String(item.Key || "") }));
+				const response = await fetch(FILE_API_BASE, { cache: "no-store" });
+				if (!response.ok) {
+					throw new Error(await response.text());
+				}
+				const payload = (await response.json()) as FileRecord[];
+				result = payload;
 			}
 			const visibleFiles = result.filter((item) => !isThumbCacheKey(item.Key));
 			setFiles(visibleFiles);
@@ -459,10 +424,13 @@ export function Files({ embedded }: FilesProps) {
 				if (SYSTEM_MODE === 0) {
 					setFiles((prev) => prev.filter((item) => !selectedKeys.includes(item.Key)));
 				} else {
-					const cfg = getConfig();
-					const client = getClient(cfg);
-					for (const key of selectedKeys) {
-						await client.send(new DeleteObjectCommand({ Bucket: cfg.bucket, Key: key }));
+					const response = await fetch(FILE_API_BASE, {
+						method: "DELETE",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({ keys: selectedKeys }),
+					});
+					if (!response.ok) {
+						throw new Error(await response.text());
 					}
 				}
 				setSelectedKeys([]);
@@ -484,12 +452,10 @@ export function Files({ embedded }: FilesProps) {
 			return;
 		}
 		try {
-			const cfg = getConfig();
 			const zip = new JSZip();
-			for (let i = 0; i < selectedKeys.length; i++) {
-				const key = selectedKeys[i];
-				const url = await getDownloadUrl(cfg, key, false);
-				const response = await fetch(url);
+			for (const key of selectedKeys) {
+				const url = await getDownloadUrl(key, false);
+				const response = await fetch(url, { cache: "no-store" });
 				if (!response.ok) throw new Error(`Download failed for ${key}: HTTP ${response.status}`);
 				const blob = await response.blob();
 				zip.file(key, blob);
@@ -531,47 +497,25 @@ export function Files({ embedded }: FilesProps) {
 				setUploadFolderName("");
 				await listFiles();
 			} else {
-				const cfg = getConfig();
-				const client = getClient(cfg);
-				const total = selectedItems.length;
-				const totalBytes = selectedItems.reduce((sum, file) => sum + file.size, 0) || 1;
-				let uploadedBytes = 0;
-				setUploadProgress({ visible: true, percent: 0, label: "Preparing upload..." });
-				for (let i = 0; i < total; i++) {
-					const file = selectedItems[i];
-					const key = getObjectKeyFromFile(file, uploadBasePrefix);
-					const putCommand = new PutObjectCommand({ Bucket: cfg.bucket, Key: key, ContentType: file.type || "application/octet-stream" });
-					const putUrl = await getSignedUrl(client, putCommand, { expiresIn: 3600 });
-					const xhr = new XMLHttpRequest();
-					await new Promise<void>((resolve, reject) => {
-						xhr.open("PUT", putUrl, true);
-						xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
-						xhr.upload.onprogress = (event) => {
-							if (event.lengthComputable) {
-								const currentTotal = uploadedBytes + Math.min(event.loaded, event.total || file.size);
-								const percent = (currentTotal / totalBytes) * 100;
-								setUploadProgress({ visible: true, percent, label: `Uploading ${i + 1}/${total}: ${file.name}` });
-							}
-						};
-						xhr.onload = () => {
-							if (xhr.status >= 200 && xhr.status < 300) resolve();
-							else reject(new Error(`HTTP ${xhr.status} ${xhr.statusText}`));
-						};
-						xhr.onerror = () => reject(new Error("Network or CORS error during upload."));
-						xhr.send(file);
-					});
-					uploadedBytes += file.size;
-					setUploadProgress({ visible: true, percent: (uploadedBytes / totalBytes) * 100, label: `Uploaded ${i + 1}/${total}: ${file.name}` });
+				const formData = new FormData();
+				formData.append("prefix", uploadBasePrefix);
+				for (const file of selectedItems) {
+					formData.append("files", file, file.name);
 				}
-				setUploadProgress({ visible: true, percent: 100, label: "Upload complete" });
-				setStatusMessage(`Upload complete (${total} file${total === 1 ? "" : "s"}).`, "ok");
+				const response = await fetch(`${FILE_API_BASE}/upload`, {
+					method: "POST",
+					body: formData,
+				});
+				if (!response.ok) {
+					throw new Error(await response.text());
+				}
+				setStatusMessage(`Upload complete (${selectedItems.length} file${selectedItems.length === 1 ? "" : "s"}).`, "ok");
 				if (fileInputRef.current) fileInputRef.current.value = "";
 				if (folderInputRef.current) folderInputRef.current.value = "";
 				setPastedImages([]);
 				setUrlFiles([]);
 				setUploadFolderName("");
 				await listFiles();
-				setTimeout(() => setUploadProgress((prev) => ({ ...prev, visible: false })), 900);
 			}
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
@@ -620,8 +564,7 @@ export function Files({ embedded }: FilesProps) {
 
 	const handleDownloadOne = async (key: string) => {
 		try {
-			const cfg = getConfig();
-			const url = await getDownloadUrl(cfg, key, true);
+			const url = await getDownloadUrl(key, true);
 			window.open(url, "_blank", "noopener,noreferrer");
 			setStatusMessage("Signed download link opened.", "ok");
 		} catch (error) {
@@ -632,8 +575,7 @@ export function Files({ embedded }: FilesProps) {
 
 	const handleViewOne = async (key: string) => {
 		try {
-			const cfg = getConfig();
-			const url = await getDownloadUrl(cfg, key, false);
+			const url = await getDownloadUrl(key, false);
 			window.open(url, "_blank", "noopener,noreferrer");
 			setStatusMessage("Signed view link opened.", "ok");
 		} catch (error) {
@@ -650,9 +592,14 @@ export function Files({ embedded }: FilesProps) {
 				if (SYSTEM_MODE === 0) {
 					setFiles((prev) => prev.filter((item) => item.Key !== key));
 				} else {
-					const cfg = getConfig();
-					const client = getClient(cfg);
-					await client.send(new DeleteObjectCommand({ Bucket: cfg.bucket, Key: key }));
+					const response = await fetch(FILE_API_BASE, {
+						method: "DELETE",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({ keys: [key] }),
+					});
+					if (!response.ok) {
+						throw new Error(await response.text());
+					}
 				}
 				setStatusMessage("File deleted.", "ok");
 				await listFiles();
@@ -859,8 +806,7 @@ export function Files({ embedded }: FilesProps) {
 																src=""
 																onClick={async () => {
 																	try {
-																		const cfg = getConfig();
-																		const url = await getDownloadUrl(cfg, item.Key, false);
+																		const url = await getDownloadUrl(item.Key, false);
 																		setThumbModalSrc(url);
 																	} catch {
 																		setThumbModalSrc(`data:text/plain,${encodeURIComponent(item.Key)}`);
