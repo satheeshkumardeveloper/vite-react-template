@@ -363,7 +363,7 @@ export function InstructionManagement() {
 													setPreviewData(inst);
 												}}
 											>
-												View
+													👁️
 											</button>
 										</td>
 										<td className="actions-cell">
@@ -373,7 +373,7 @@ export function InstructionManagement() {
 												onClick={() => handleEdit(inst)}
 												title="Edit instruction"
 											>
-												✏️ Edit
+												✏️
 											</button>
 											<button
 												type="button"
@@ -381,7 +381,7 @@ export function InstructionManagement() {
 												onClick={() => handleDelete(inst.id)}
 												title="Delete instruction"
 											>
-												🗑️ Delete
+												🗑️
 											</button>
 										</td>
 									</tr>
