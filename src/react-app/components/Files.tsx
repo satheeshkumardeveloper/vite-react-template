@@ -415,7 +415,7 @@ export function Files({ embedded }: FilesProps) {
 				const folderSet = new Set<string>();
 				for (const item of SAMPLE_MOCK_FILES) {
 					const folderPath = getFolderPathFromKey(item.Key || "");
-					if (folderPath && folderPath !== "(root)") folderSet.add(folderPath);
+					if (folderPath && folderPath !== "(root)" && !folderPath.startsWith("thumbs")) folderSet.add(folderPath);
 				}
 				folderList = Array.from(folderSet).sort((a, b) => a.localeCompare(b));
 			} else {

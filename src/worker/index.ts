@@ -569,9 +569,9 @@ app.get("/api/files/folders", async (c) => {
 			// Extract unique folder paths from all file keys
 			for (const obj of listed.objects || []) {
 				const key = obj.key;
-				if (key && key.includes("/")) {
+				if (key && key.includes("/") && !key.startsWith("thumbs/")) {
 					const folderPath = key.substring(0, key.lastIndexOf("/"));
-					if (folderPath) folderSet.add(folderPath);
+					if (folderPath && !folderPath.startsWith("thumbs")) folderSet.add(folderPath);
 				}
 			}
 
