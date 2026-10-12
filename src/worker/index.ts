@@ -592,11 +592,66 @@ app.post("/api/files/upload", async (c) => {
 
 		const uploadedKeys: string[] = [];
 
-		// If credentials provided, use S3 API via fetch; otherwise fall back to R2 binding
+		// If credentials provided, use S3 API via fetch with AWS SigV4; otherwise fall back to R2 binding
 		if (endpoint && bucket && region && accessKey && secretKey) {
-			// Use S3-compatible upload via fetch with Basic Auth
+			// Use S3-compatible upload via fetch with AWS Signature Version 4
 			try {
+				// Helper function to calculate SHA256
+				const calculateSHA256 = async (data: Uint8Array): Promise<string> => {
+					const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+					const hashArray = Array.from(new Uint8Array(hashBuffer));
+					return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+				};
+
+				// Helper function to sign AWS request
+				const signAWSRequest = async (
+					method: string,
+					hostName: string,
+					canonicalURI: string,
+					payloadHash: string,
+					accessKeyId: string,
+					secretAccessKey: string,
+					awsRegion: string,
+				) => {
+					const amzDate = new Date().toISOString().replace(/[:-]|\.\d{3}/g, "");
+					const datestamp = amzDate.slice(0, 8);
+
+					const canonicalHeaders = `host:${hostName}\nx-amz-content-sha256:${payloadHash}\nx-amz-date:${amzDate}\n`;
+					const signedHeaders = "host;x-amz-content-sha256;x-amz-date";
+					const canonicalRequest = `${method}\n${canonicalURI}\n\n${canonicalHeaders}\n${signedHeaders}\n${payloadHash}`;
+
+					const canonicalRequestHash = await calculateSHA256(new TextEncoder().encode(canonicalRequest));
+					const credentialScope = `${datestamp}/${awsRegion}/s3/aws4_request`;
+					const stringToSign = `AWS4-HMAC-SHA256\n${amzDate}\n${credentialScope}\n${canonicalRequestHash}`;
+
+					// Calculate AWS SigV4 signature
+					const hmacSHA256 = async (key: Uint8Array, message: string): Promise<Uint8Array> => {
+						const importedKey = await crypto.subtle.importKey("raw", key, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+						const signature = await crypto.subtle.sign("HMAC", importedKey, new TextEncoder().encode(message));
+						return new Uint8Array(signature);
+					};
+
+					const kSecret = new TextEncoder().encode(`AWS4${secretAccessKey}`);
+					const kDate = await hmacSHA256(kSecret, datestamp);
+					const kRegion = await hmacSHA256(kDate, awsRegion);
+					const kService = await hmacSHA256(kRegion, "s3");
+					const kSigningKey = await hmacSHA256(kService, "aws4_request");
+					const signature = await hmacSHA256(kSigningKey, stringToSign);
+
+					const signatureHex = Array.from(signature)
+						.map((b) => b.toString(16).padStart(2, "0"))
+						.join("");
+
+					const authorizationHeader = `AWS4-HMAC-SHA256 Credential=${accessKeyId}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signatureHex}`;
+
+					return {
+						authorization: authorizationHeader,
+						amzDate,
+					};
+				};
+
 				const s3Endpoint = endpoint.startsWith("http") ? endpoint : `https://${endpoint}`;
+				const hostName = new URL(s3Endpoint).hostname;
 				const s3BaseUrl = `${s3Endpoint}/${bucket}`;
 
 				for (const file of files) {
@@ -606,24 +661,24 @@ app.post("/api/files/upload", async (c) => {
 						.trim();
 					const normalizedPath = relativePath === "" ? "upload.bin" : relativePath;
 					const key = prefix ? `${prefix.replace(/^\/+|\/+$/g, "")}/${normalizedPath.replace(/^\/+/, "")}` : normalizedPath.replace(/^\/+/, "");
-					
-					const buffer = await file.arrayBuffer();
-					const url = `${s3BaseUrl}/${key}`;
 
-					// Encode credentials for Basic Auth (compatible with S3-compatible services)
-					const credentialsStr = `${accessKey}:${secretKey}`;
-					const encoder = new TextEncoder();
-					const credentialsBytes = encoder.encode(credentialsStr);
-					const credentialsArray = Array.from(credentialsBytes);
-					const base64Credentials = btoa(String.fromCharCode(...credentialsArray));
-					
+					const buffer = await file.arrayBuffer();
+					const bufferArray = new Uint8Array(buffer);
+					const payloadHash = await calculateSHA256(bufferArray);
+
+					const canonicalURI = `/${bucket}/${key}`;
+					const signData = await signAWSRequest("PUT", hostName, canonicalURI, payloadHash, accessKey, secretKey, region);
+
+					const url = `${s3BaseUrl}/${key}`;
 					const uploadResponse = await fetch(url, {
 						method: "PUT",
 						headers: {
 							"Content-Type": file.type || "application/octet-stream",
-							"Authorization": `Basic ${base64Credentials}`,
+							"x-amz-content-sha256": payloadHash,
+							"x-amz-date": signData.amzDate,
+							"Authorization": signData.authorization,
 						},
-						body: new Uint8Array(buffer),
+						body: bufferArray,
 					});
 
 					if (!uploadResponse.ok) {
