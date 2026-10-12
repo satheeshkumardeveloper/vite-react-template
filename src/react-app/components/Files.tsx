@@ -201,6 +201,7 @@ export function Files({ embedded }: FilesProps) {
 	const [galleryViewEnabled, setGalleryViewEnabled] = useState(false);
 	const [folderFilter, setFolderFilter] = useState("(root)");
 	const [uploadFolderOptions, setUploadFolderOptions] = useState<string[]>([]);
+	const [allFolders, setAllFolders] = useState<string[]>([]);
 	const [uploadFolderMenuOpen, setUploadFolderMenuOpen] = useState(false);
 	const [uploadFolderActiveIndex, setUploadFolderActiveIndex] = useState(0);
 	const [showConfirm, setShowConfirm] = useState(false);
@@ -249,14 +250,10 @@ export function Files({ embedded }: FilesProps) {
 		return root;
 	};
 
-	const renderFolderToolbar = (list: FileRecord[]) => {
-		const folderSet = new Set<string>();
-		for (const item of list) folderSet.add(getFolderPathFromKey(item.Key || ""));
-		const tree = createFolderTree(Array.from(folderSet));
-		return { tree, folderSet };
-	};
-
-	const folderTreeData = useMemo(() => renderFolderToolbar(files), [files]);
+	const folderTreeData = useMemo(() => {
+		const tree = createFolderTree(allFolders.length > 0 ? allFolders : []);
+		return { tree, folderSet: new Set(allFolders) };
+	}, [allFolders]);
 
 	const filteredFiles = useMemo(() => {
 		const query = searchTerm.trim().toLowerCase();
@@ -266,7 +263,7 @@ export function Files({ embedded }: FilesProps) {
 				!folderFilter || folderFilter === "(root)"
 					? folder === "(root)"
 					: folder === folderFilter || folder.startsWith(`${folderFilter}/`) || folderFilter === "";
-			const keyMatched = !query || (item.Key || "").toLowerCase().includes(query);
+			const keyMatched = !query || (item.Key || "").toLowerCase().includes(query) || folder.toLowerCase().includes(query);
 			return folderMatched && keyMatched;
 		});
 	}, [files, folderFilter, searchTerm]);
@@ -412,6 +409,7 @@ export function Files({ embedded }: FilesProps) {
 	const loadFolders = async () => {
 		try {
 			setStatusMessage("Loading folder structure...");
+			let folderList: string[] = [];
 			if (SYSTEM_MODE === 0) {
 				// Mock mode: extract folders from sample files
 				const folderSet = new Set<string>();
@@ -419,16 +417,18 @@ export function Files({ embedded }: FilesProps) {
 					const folderPath = getFolderPathFromKey(item.Key || "");
 					if (folderPath && folderPath !== "(root)") folderSet.add(folderPath);
 				}
-				const folders = Array.from(folderSet).sort((a, b) => a.localeCompare(b));
-				setUploadFolderOptions(folders);
+				folderList = Array.from(folderSet).sort((a, b) => a.localeCompare(b));
 			} else {
 				const response = await fetch(`${FILE_API_BASE}/folders`, { cache: "no-store" });
 				if (!response.ok) {
 					throw new Error(await response.text());
 				}
 				const payload = (await response.json()) as { folders: string[] };
-				setUploadFolderOptions(payload.folders || []);
+				folderList = payload.folders || [];
 			}
+			// Store all folders for tree display
+			setAllFolders(folderList);
+			setUploadFolderOptions(folderList);
 			// After loading folders, load files for (root) folder
 			await loadFilesByFolder("(root)");
 		} catch (error) {

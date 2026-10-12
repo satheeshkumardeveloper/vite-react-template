@@ -558,16 +558,25 @@ app.get("/api/files/folders", async (c) => {
 			return c.json({ error: "R2 binding IMAGES is missing in Worker environment." }, 500);
 		}
 
-		const listed = await r2.list();
 		const folderSet = new Set<string>();
-		
-		// Extract unique folder paths from all file keys
-		for (const obj of listed.objects || []) {
-			const key = obj.key;
-			if (key && key.includes("/")) {
-				const folderPath = key.substring(0, key.lastIndexOf("/"));
-				if (folderPath) folderSet.add(folderPath);
+		let cursor: string | undefined;
+		let truncated = true;
+
+		// Handle pagination - loop until all objects are retrieved
+		while (truncated) {
+			const listed = await r2.list({ cursor });
+			
+			// Extract unique folder paths from all file keys
+			for (const obj of listed.objects || []) {
+				const key = obj.key;
+				if (key && key.includes("/")) {
+					const folderPath = key.substring(0, key.lastIndexOf("/"));
+					if (folderPath) folderSet.add(folderPath);
+				}
 			}
+
+			truncated = (listed as any).truncated || false;
+			cursor = (listed as any).cursor;
 		}
 
 		const folders = Array.from(folderSet).sort((a, b) => a.localeCompare(b));
@@ -586,26 +595,44 @@ app.get("/api/files/by-folder", async (c) => {
 		}
 
 		const folder = (c.req.query("folder") || "").trim();
-		const listed = await r2.list();
-		
-		const objects = (listed.objects || [])
-			.filter((obj) => {
-				const key = obj.key;
-				if (!key) return false;
-				if (folder === "(root)") {
-					// Root folder: files without any "/" in the key
-					return !key.includes("/");
-				}
-				// Specific folder: files whose path starts with the folder name
-				return key.startsWith(`${folder}/`) && !key.substring(`${folder}/`.length).includes("/");
-			})
-			.map((obj) => ({
-				Key: obj.key,
-				LastModified: obj.uploaded,
-				ETag: obj.httpEtag || obj.etag || null,
-				Size: obj.size,
-				StorageClass: obj.httpMetadata?.contentType ? "STANDARD" : "STANDARD",
-			}));
+		const objects: Array<{
+			Key: string;
+			LastModified: Date | undefined;
+			ETag: string | null;
+			Size: number | undefined;
+			StorageClass: string;
+		}> = [];
+
+		let cursor: string | undefined;
+		let truncated = true;
+
+		// Handle pagination - loop until all objects are retrieved
+		while (truncated) {
+			const listed = await r2.list({ cursor });
+			
+			const filtered = (listed.objects || [])
+				.filter((obj) => {
+					const key = obj.key;
+					if (!key) return false;
+					if (folder === "(root)") {
+						// Root folder: files without any "/" in the key
+						return !key.includes("/");
+					}
+					// Specific folder: files whose path starts with the folder name
+					return key.startsWith(`${folder}/`) && !key.substring(`${folder}/`.length).includes("/");
+				})
+				.map((obj) => ({
+					Key: obj.key,
+					LastModified: obj.uploaded,
+					ETag: obj.httpEtag || obj.etag || null,
+					Size: obj.size,
+					StorageClass: obj.httpMetadata?.contentType ? "STANDARD" : "STANDARD",
+				}));
+
+			objects.push(...filtered);
+			truncated = (listed as any).truncated || false;
+			cursor = (listed as any).cursor;
+		}
 
 		return c.json(objects);
 	} catch (error) {
@@ -621,14 +648,33 @@ app.get("/api/files", async (c) => {
 		}
 
 		const prefix = (c.req.query("prefix") || "").trim();
-		const listed = await r2.list({ prefix: prefix || undefined });
-		const objects = (listed.objects || []).map((obj) => ({
-			Key: obj.key,
-			LastModified: obj.uploaded,
-			ETag: obj.httpEtag || obj.etag || null,
-			Size: obj.size,
-			StorageClass: obj.httpMetadata?.contentType ? "STANDARD" : "STANDARD",
-		}));
+		const objects: Array<{
+			Key: string;
+			LastModified: Date | undefined;
+			ETag: string | null;
+			Size: number | undefined;
+			StorageClass: string;
+		}> = [];
+
+		let cursor: string | undefined;
+		let truncated = true;
+
+		// Handle pagination - loop until all objects are retrieved
+		while (truncated) {
+			const listed = await r2.list({ prefix: prefix || undefined, cursor });
+			
+			const mapped = (listed.objects || []).map((obj) => ({
+				Key: obj.key,
+				LastModified: obj.uploaded,
+				ETag: obj.httpEtag || obj.etag || null,
+				Size: obj.size,
+				StorageClass: obj.httpMetadata?.contentType ? "STANDARD" : "STANDARD",
+			}));
+
+			objects.push(...mapped);
+			truncated = (listed as any).truncated || false;
+			cursor = (listed as any).cursor;
+		}
 
 		return c.json(objects);
 	} catch (error) {
