@@ -180,6 +180,111 @@ function getFileNameFromUrl(url: string, fallbackExtension = "bin") {
 	return `urlfile_${getTimestampForFileName()}.${fallbackExtension}`;
 }
 
+function getThumbKey(originalKey: string): string {
+	return `thumbs/${originalKey}`;
+}
+
+async function makeThumbDataUrl(url: string, size = 80, quality = 0.55): Promise<string> {
+	try {
+		const response = await fetch(url);
+		if (!response.ok) return "";
+		const blob = await response.blob();
+		const img = new Image();
+		img.onload = () => {
+			const canvas = document.createElement("canvas");
+			canvas.width = size;
+			canvas.height = size;
+			const ctx = canvas.getContext("2d");
+			if (ctx) {
+				const scale = Math.max(size / img.width, size / img.height);
+				const x = (size / 2) - (img.width / 2) * scale;
+				const y = (size / 2) - (img.height / 2) * scale;
+				ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
+			}
+		};
+		img.src = URL.createObjectURL(blob);
+		return new Promise((resolve) => {
+			img.onload = () => {
+				const canvas = document.createElement("canvas");
+				canvas.width = size;
+				canvas.height = size;
+				const ctx = canvas.getContext("2d");
+				if (ctx) {
+					const scale = Math.max(size / img.width, size / img.height);
+					const x = (size / 2) - (img.width / 2) * scale;
+					const y = (size / 2) - (img.height / 2) * scale;
+					ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
+				}
+				resolve(canvas.toDataURL("image/jpeg", quality));
+				URL.revokeObjectURL(img.src);
+			};
+		});
+	} catch {
+		return "";
+	}
+}
+
+async function uploadThumbToR2(
+	settings: ConfigValues,
+	thumbKey: string,
+	dataUrl: string,
+): Promise<boolean> {
+	if (!dataUrl.startsWith("data:")) return false;
+	try {
+		const blobResponse = await fetch(dataUrl);
+		const blob = await blobResponse.blob();
+		const file = new File([blob], thumbKey, { type: "image/jpeg" });
+
+		const formData = new FormData();
+		formData.append("prefix", "");
+		formData.append("files", file, thumbKey);
+		if (settings.endpoint) formData.append("endpoint", settings.endpoint);
+		if (settings.bucket) formData.append("bucket", settings.bucket);
+		if (settings.region) formData.append("region", settings.region);
+		if (settings.accessKey) formData.append("accessKey", settings.accessKey);
+		if (settings.secretKey) formData.append("secretKey", settings.secretKey);
+
+		const response = await fetch(`${FILE_API_BASE}/upload`, {
+			method: "POST",
+			body: formData,
+		});
+		return response.ok;
+	} catch {
+		return false;
+	}
+}
+
+async function loadThumbWithCache(
+	settings: ConfigValues,
+	originalKey: string,
+	signedOriginalUrl: string,
+): Promise<string> {
+	const thumbKey = getThumbKey(originalKey);
+
+	// Try to load thumb from R2
+	try {
+		const downloadUrl = new URLSearchParams({ key: thumbKey }).toString();
+		const thumbUrl = `${FILE_API_BASE}/download?${downloadUrl}`;
+		const response = await fetch(thumbUrl, { cache: "no-store" });
+		if (response.ok) {
+			return thumbUrl;
+		}
+	} catch {
+		// Thumb not found, will create
+	}
+
+	// Thumb doesn't exist, create and upload
+	const thumbDataUrl = await makeThumbDataUrl(signedOriginalUrl, 80, 0.55);
+	if (thumbDataUrl) {
+		await uploadThumbToR2(settings, thumbKey, thumbDataUrl);
+		const downloadUrl = new URLSearchParams({ key: thumbKey }).toString();
+		return `${FILE_API_BASE}/download?${downloadUrl}`;
+	}
+
+	// Fallback to original
+	return signedOriginalUrl;
+}
+
 export function Files({ embedded }: FilesProps) {
 	const [settings, setSettings] = useState<ConfigValues>({
 		endpoint: "https://154ae3f25894982cac7efae1a24569ae.r2.cloudflarestorage.com",
@@ -211,6 +316,7 @@ export function Files({ embedded }: FilesProps) {
 	const [deleteLoaderText, setDeleteLoaderText] = useState("Deleting...");
 	const [thumbModalSrc, setThumbModalSrc] = useState<string | null>(null);
 	const [uploadProgress, setUploadProgress] = useState({ visible: false, percent: 0, label: "Preparing upload..." });
+	const [thumbUrls, setThumbUrls] = useState<Record<string, string>>({});
 
 	const fileInputRef = useRef<HTMLInputElement | null>(null);
 	const folderInputRef = useRef<HTMLInputElement | null>(null);
@@ -714,6 +820,39 @@ export function Files({ embedded }: FilesProps) {
 		setUploadFolderActiveIndex((prev) => Math.min(prev, folderSuggestions.length - 1));
 	}, [folderSuggestions.length]);
 
+	// Load thumbnails when enabled
+	useEffect(() => {
+		if (!showThumbs || filteredFiles.length === 0) {
+			return;
+		}
+
+		const loadThumbnails = async () => {
+			const newThumbUrls: Record<string, string> = { ...thumbUrls };
+			let updated = false;
+
+			for (const file of filteredFiles) {
+				if (!isImageKey(file.Key)) continue;
+				if (thumbUrls[file.Key]) continue; // Already loaded
+
+				try {
+					const signedUrl = await getDownloadUrl(file.Key, false);
+					const thumbUrl = await loadThumbWithCache(settings, file.Key, signedUrl);
+					newThumbUrls[file.Key] = thumbUrl;
+					updated = true;
+				} catch {
+					// Silently fail for this file
+				}
+			}
+
+			if (updated) {
+				setThumbUrls(newThumbUrls);
+			}
+		};
+
+		loadThumbnails();
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [showThumbs, filteredFiles]);
+
 	return (
 		<div className={`files-wrapper ${embedded ? "embedded" : ""}`}>
 			<div className="files-shell" data-embedded={embedded ? "true" : "false"}>
@@ -913,8 +1052,16 @@ export function Files({ embedded }: FilesProps) {
 												<span className="gallery-size">{formatBytes(item.Size || 0)}</span>
 											</div>
 											<div>
-												{isImageKey(item.Key) ? (
-													<div className="thumb-placeholder" style={{ display: showThumbs ? "none" : "flex" }}>🖼️</div>
+												{isImageKey(item.Key) && showThumbs && thumbUrls[item.Key] ? (
+													<img
+														src={thumbUrls[item.Key]}
+														alt={item.Key}
+														className="thumb"
+														onClick={() => setThumbModalSrc(thumbUrls[item.Key] || null)}
+														style={{ cursor: "pointer" }}
+													/>
+												) : isImageKey(item.Key) ? (
+													<div className="thumb-placeholder">🖼️</div>
 												) : (
 													<div className="thumb-placeholder">{getFileIcon(item.Key)}</div>
 												)}
