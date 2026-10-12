@@ -500,6 +500,14 @@ export function Files({ embedded }: FilesProps) {
 			} else {
 				const formData = new FormData();
 				formData.append("prefix", uploadBasePrefix);
+				
+				// Include S3 credentials
+				if (settings.endpoint) formData.append("endpoint", settings.endpoint);
+				if (settings.bucket) formData.append("bucket", settings.bucket);
+				if (settings.region) formData.append("region", settings.region);
+				if (settings.accessKey) formData.append("accessKey", settings.accessKey);
+				if (settings.secretKey) formData.append("secretKey", settings.secretKey);
+				
 				for (const file of selectedItems) {
 					formData.append("files", file, file.name);
 				}

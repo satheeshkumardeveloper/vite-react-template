@@ -575,33 +575,80 @@ app.get("/api/files", async (c) => {
 
 app.post("/api/files/upload", async (c) => {
 	try {
-		const r2 = c.env.IMAGES as R2Bucket;
-		if (!r2) {
-			return c.json({ error: "R2 binding IMAGES is missing in Worker environment." }, 500);
-		}
-
 		const formData = await c.req.formData();
 		const prefix = (formData.get("prefix")?.toString() || "").trim();
 		const files = formData.getAll("files").filter((item): item is File => item instanceof File);
+
+		// Try to get S3 credentials from formData
+		const endpoint = (formData.get("endpoint")?.toString() || "").trim();
+		const bucket = (formData.get("bucket")?.toString() || "").trim();
+		const region = (formData.get("region")?.toString() || "").trim();
+		const accessKey = (formData.get("accessKey")?.toString() || "").trim();
+		const secretKey = (formData.get("secretKey")?.toString() || "").trim();
 
 		if (!files.length) {
 			return c.json({ error: "At least one file is required." }, 400);
 		}
 
 		const uploadedKeys: string[] = [];
-		for (const file of files) {
-			const relativePath = String((file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name || "upload.bin")
-				.replace(/\\/g, "/")
-				.replace(/^\/+/, "")
-				.trim();
-			const normalizedPath = relativePath === "" ? "upload.bin" : relativePath;
-			const key = prefix ? `${prefix.replace(/^\/+|\/+$/g, "")}/${normalizedPath.replace(/^\/+/, "")}` : normalizedPath.replace(/^\/+/, "");
-			await r2.put(key, file.stream(), {
-				httpMetadata: {
-					contentType: file.type || "application/octet-stream",
-				},
-			});
-			uploadedKeys.push(key);
+
+		// If credentials provided, use S3 SDK; otherwise fall back to R2 binding
+		if (endpoint && bucket && region && accessKey && secretKey) {
+			// Use S3-compatible upload via AWS SDK
+			try {
+				const { S3Client, PutObjectCommand } = await import("@aws-sdk/client-s3");
+				
+				const s3Client = new S3Client({
+					region,
+					credentials: {
+						accessKeyId: accessKey,
+						secretAccessKey: secretKey,
+					},
+					endpoint: endpoint.startsWith("http") ? endpoint : `https://${endpoint}`,
+					forcePathStyle: true,
+				});
+
+				for (const file of files) {
+					const relativePath = String((file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name || "upload.bin")
+						.replace(/\\/g, "/")
+						.replace(/^\/+/, "")
+						.trim();
+					const normalizedPath = relativePath === "" ? "upload.bin" : relativePath;
+					const key = prefix ? `${prefix.replace(/^\/+|\/+$/g, "")}/${normalizedPath.replace(/^\/+/, "")}` : normalizedPath.replace(/^\/+/, "");
+					
+					const buffer = await file.arrayBuffer();
+					await s3Client.send(new PutObjectCommand({
+						Bucket: bucket,
+						Key: key,
+						Body: new Uint8Array(buffer),
+						ContentType: file.type || "application/octet-stream",
+					}));
+					uploadedKeys.push(key);
+				}
+			} catch (sdkError) {
+				throw new Error(`S3 upload failed: ${sdkError instanceof Error ? sdkError.message : String(sdkError)}`);
+			}
+		} else {
+			// Fall back to R2 binding if no credentials provided
+			const r2 = c.env.IMAGES as R2Bucket;
+			if (!r2) {
+				return c.json({ error: "R2 binding IMAGES is missing and no S3 credentials provided." }, 500);
+			}
+
+			for (const file of files) {
+				const relativePath = String((file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name || "upload.bin")
+					.replace(/\\/g, "/")
+					.replace(/^\/+/, "")
+					.trim();
+				const normalizedPath = relativePath === "" ? "upload.bin" : relativePath;
+				const key = prefix ? `${prefix.replace(/^\/+|\/+$/g, "")}/${normalizedPath.replace(/^\/+/, "")}` : normalizedPath.replace(/^\/+/, "");
+				await r2.put(key, file.stream(), {
+					httpMetadata: {
+						contentType: file.type || "application/octet-stream",
+					},
+				});
+				uploadedKeys.push(key);
+			}
 		}
 
 		return c.json({ success: true, uploaded: uploadedKeys });
