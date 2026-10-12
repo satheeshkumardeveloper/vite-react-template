@@ -273,6 +273,7 @@ export function Files({ embedded }: FilesProps) {
 
 	const browseFolder = (path: string) => {
 		setFolderFilter(path);
+		setGalleryViewEnabled(false);
 	};
 
 	const handleSelectRow = (key: string, checked: boolean) => {
@@ -537,28 +538,38 @@ export function Files({ embedded }: FilesProps) {
 		setUploadFolderOptions(getFolderNameTree(files));
 	}, [files]);
 
-	const renderTreeNodes = (tree: Record<string, any>, parentPath = "") => {
+	const getFlatFolderList = (tree: Record<string, any>, parentPath = ""): string[] => {
 		const entries = Object.keys(tree).sort((a, b) => a.localeCompare(b));
-		if (!entries.length) return null;
+		const result: string[] = [];
+		entries.forEach((name) => {
+			const fullPath = parentPath ? `${parentPath}/${name}` : name;
+			result.push(fullPath);
+			result.push(...getFlatFolderList(tree[name], fullPath));
+		});
+		return result;
+	};
+
+	const renderTreeNodes = (tree: Record<string, any>) => {
+		const flatFolders = getFlatFolderList(tree);
+		if (!flatFolders.length) return null;
 		return (
-			<ul className={`tree-list ${parentPath ? "tree-children" : ""}`}>
-				{entries.map((name) => {
-					const fullPath = parentPath ? `${parentPath}/${name}` : name;
+			<div className="folder-grid">
+				{flatFolders.map((folderPath) => {
+					const folderName = folderPath.split("/").pop() || folderPath;
 					return (
-						<li className="tree-item" key={fullPath}>
-							<button
-								type="button"
-								className={`tree-node ${folderFilter === fullPath ? "active" : ""}`}
-								onClick={() => browseFolder(fullPath)}
-							>
-								<span className="tree-icon">📁</span>
-								<span>{name}</span>
-							</button>
-							{renderTreeNodes(tree[name], fullPath)}
-						</li>
+						<button
+							key={folderPath}
+							type="button"
+							className={`folder-grid-item ${folderFilter === folderPath ? "active" : ""}`}
+							onClick={() => browseFolder(folderPath)}
+							title={folderPath}
+						>
+							<span className="folder-grid-icon">📁</span>
+							<span className="folder-grid-name">{folderName}</span>
+						</button>
 					);
 				})}
-			</ul>
+			</div>
 		);
 	};
 
@@ -654,7 +665,12 @@ export function Files({ embedded }: FilesProps) {
 			<div className="files-shell" data-embedded={embedded ? "true" : "false"}>
 				
 				<div className="card">
-					<div className="upload-layout">
+					<div className="card-head">
+						<h2>Upload Files</h2>
+						<button type="button" className="toggle-btn secondary" aria-expanded={false} onClick={() => document.getElementById("uploadBody")?.classList.toggle("hidden")}>v</button>
+					</div>
+					<div id="uploadBody" className="hidden">
+						<div className="upload-layout">
 						<div className="upload-grid">
 							<div className="field-card">
 								<label htmlFor="files">Select files (multi upload)</label>
@@ -723,24 +739,25 @@ export function Files({ embedded }: FilesProps) {
 							<button type="button" onClick={uploadFiles}>Upload</button>
 						</div>
 					</div>
-					{uploadProgress.visible && (
-						<div className="progress-wrap">
-							<div className="progress-top">
-								<span>{uploadProgress.label}</span>
-								<span>{uploadProgress.percent.toFixed(1)}%</span>
-							</div>
-							<div className="progress-track" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(uploadProgress.percent)}>
-								<div className="progress-fill" style={{ width: `${uploadProgress.percent}%` }} />
-							</div>
-						</div>
-					)}
+			</div>
+			{uploadProgress.visible && (
+				<div className="progress-wrap">
+					<div className="progress-top">
+						<span>{uploadProgress.label}</span>
+						<span>{uploadProgress.percent.toFixed(1)}%</span>
+					</div>
+					<div className="progress-track" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(uploadProgress.percent)}>
+						<div className="progress-fill" style={{ width: `${uploadProgress.percent}%` }} />
+					</div>
 				</div>
+			)}
+		</div>
 
-				<div className="card">
-					<div className="list-top-row">
-						<div className="list-top-left">
-							<span className="pill">{files.length} file{files.length === 1 ? "" : "s"}</span>
-						</div>
+		<div className="card">
+			<div className="list-top-row">
+				<div className="list-top-left">
+					<span className="pill">{files.length} file{files.length === 1 ? "" : "s"}</span>
+				</div>
 						<div className="list-top-center">
 							<button type="button" className="secondary" onClick={listFiles}>Refresh List</button>
 						</div>
@@ -768,7 +785,7 @@ export function Files({ embedded }: FilesProps) {
 							<button type="button" className={`folder-chip ${folderFilter === "(root)" ? "active" : ""}`} onClick={() => setFolderFilter("(root)")}>Root</button>
 							<button type="button" className={`folder-chip ${folderFilter === "" ? "active" : ""}`} onClick={() => setFolderFilter("")}>All folders</button>
 						</div>
-						<div className="folder-tree-wrap">{renderTreeNodes(folderTreeData.tree, "")}</div>
+						<div className="folder-tree-wrap">{renderTreeNodes(folderTreeData.tree)}</div>
 					</div>
 					<div className="table-wrap" hidden={galleryViewEnabled}>
 						<table>
@@ -820,7 +837,7 @@ export function Files({ embedded }: FilesProps) {
 													<span className="key-text">{item.Key}</span>
 												</td>
 												<td>{formatBytes(item.Size || 0)}</td>
-												<td className="actions-cell"><div className="action-buttons"><button type="button" className="icon-btn secondary" onClick={() => handleViewOne(item.Key)} title="View">👁</button><button type="button" className="icon-btn secondary" onClick={() => handleDownloadOne(item.Key)} title="Download">⬇</button><button type="button" className="icon-btn danger" onClick={() => deleteSingleKey(item.Key)} title="Delete">🗑</button></div></td>
+												<td className=""><div className="action-buttons"><button type="button" className="icon-btn secondary" onClick={() => handleViewOne(item.Key)} title="View">👁</button><button type="button" className="icon-btn secondary" onClick={() => handleDownloadOne(item.Key)} title="Download">⬇</button><button type="button" className="icon-btn danger" onClick={() => deleteSingleKey(item.Key)} title="Delete">🗑</button></div></td>
 											</tr>
 										);
 									})

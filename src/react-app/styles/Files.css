@@ -258,6 +258,58 @@ button:disabled {
 	padding-right: 4px;
 }
 
+.folder-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+	gap: 8px;
+	overflow: auto;
+	max-height: 200px;
+	padding-right: 4px;
+}
+
+.folder-grid-item {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 4px;
+	padding: 8px;
+	border: 1px solid var(--files-border);
+	border-radius: 8px;
+	background: #243358;
+	color: var(--files-text);
+	cursor: pointer;
+	font-size: 0.75rem;
+	text-align: center;
+	transition: all 0.2s ease;
+	min-height: 80px;
+	word-break: break-word;
+}
+
+.folder-grid-item:hover {
+	background: #2d4368;
+	border-color: #4f7cff;
+}
+
+.folder-grid-item.active {
+	background: var(--files-accent);
+	border-color: var(--files-accent);
+	color: #ffffff;
+}
+
+.folder-grid-icon {
+	font-size: 1.5rem;
+	display: block;
+}
+
+.folder-grid-name {
+	display: block;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	width: 100%;
+}
+
 .tree-list {
 	list-style: none;
 	margin: 0;
@@ -644,6 +696,10 @@ button:disabled {
 	margin-top: 10px;
 }
 
+.gallery-wrap.hidden {
+	display: none !important;
+}
+
 .gallery-card {
 	border: 1px solid var(--files-border);
 	border-radius: 10px;
@@ -699,8 +755,12 @@ td {
 	border-bottom: 1px solid var(--files-border);
 	padding: 8px;
 	text-align: left;
-	vertical-align: top;
+	vertical-align: middle;
 	overflow-wrap: anywhere;
+}
+
+tr {
+	height: auto;
 }
 
 .folder-cell {
@@ -774,16 +834,23 @@ td {
 
 .actions-cell {
 	width: 220px;
+	padding: 8px;
+	text-align: center;
 }
 
 .action-buttons {
 	display: flex;
 	gap: 6px;
-	flex-wrap: wrap;
+	flex-wrap: nowrap;
+	align-items: center;
+	justify-content: center;
+	width: 100%;
+	height: 100%;
 }
 
 .action-buttons button {
 	margin-right: 0 !important;
+	flex-shrink: 0;
 }
 
 th {
