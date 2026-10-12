@@ -21,7 +21,7 @@ function makeId() {
 	return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-export function AIChat({ embedded = false, onBackToDashboard }: AIChatProps) {
+export function AIChat(_props: AIChatProps) {
 	const [messages, setMessages] = useState<ChatMessage[]>([
 		{
 			id: makeId(),
