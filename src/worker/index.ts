@@ -3,6 +3,78 @@ const app = new Hono<{ Bindings: Env }>();
 
 app.get("/api/", (c) => c.json({ name: "Cloudflare Satheesh" }));
 
+app.post("/api/ai-chat", async (c) => {
+	try {
+		const body = await c.req.json();
+		const selectedModel = String(body?.model || "@cf/zai-org/glm-4.7-flash").trim();
+		const allowedModels = ["@cf/zai-org/glm-4.7-flash"];
+		const rawMessages = Array.isArray(body?.messages) ? (body.messages as Array<{ role?: unknown; content?: unknown }>) : [];
+
+		if (!allowedModels.includes(selectedModel)) {
+			return c.json({ error: "Unsupported model selected" }, 400);
+		}
+
+		const messages = rawMessages
+			.map((message) => ({
+				role: String(message?.role || "").trim(),
+				content: String(message?.content || "").trim(),
+			}))
+			.filter((message) => message.role && message.content);
+
+		if (!messages.length) {
+			return c.json({ error: "messages are required" }, 400);
+		}
+
+		const env = c.env as unknown as Record<string, string | undefined>;
+		const accountId = env.CF_ACCOUNT_ID;
+		const aiToken = env.CF_AI_API_TOKEN;
+
+		if (!accountId || !aiToken) {
+			return c.json({ error: "Missing Cloudflare AI credentials in Worker environment." }, 500);
+		}
+
+		const upstream = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/v1/chat/completions`, {
+			method: "POST",
+			headers: {
+				Authorization: `Bearer ${aiToken}`,
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify({
+				model: selectedModel,
+				messages,
+				stream: false,
+			}),
+		});
+
+		const rawText = await upstream.text();
+		let output: any = null;
+
+		try {
+			output = JSON.parse(rawText);
+		} catch {
+			return c.json({ error: "Invalid upstream response", raw: rawText }, 502);
+		}
+
+		if (!upstream.ok || (output as { success?: boolean } | null)?.success === false) {
+			return new Response(JSON.stringify({ error: "Cloudflare AI request failed", upstream: output }), {
+				status: upstream.status || 502,
+				headers: { "content-type": "application/json;charset=UTF-8" },
+			});
+		}
+
+		const assistantText = output?.choices?.[0]?.message?.content || output?.response || "";
+
+		return c.json({
+			response: assistantText,
+			model: output?.model || selectedModel,
+			usage: output?.usage || null,
+			id: output?.id || null,
+		});
+	} catch (error) {
+		return c.json({ error: error instanceof Error ? error.message : String(error) }, 500);
+	}
+});
+
 app.post("/api/image-prompt-generate", async (c) => {
 	try {
 		const body = await c.req.json();

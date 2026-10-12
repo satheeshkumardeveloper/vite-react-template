@@ -5,11 +5,12 @@ import { ImagePromptHistory } from "./ImagePromptHistory";
 import { InstructionManagement } from "./InstructionManagement";
 import { Clipboard } from "./Clipboard";
 import { Files } from "./Files";
+import { AIChat } from "./AIChat";
 import "../styles/Dashboard.css";
 
 type DashboardProps = {
-	activeView: "dashboard" | "image-prompt" | "image-cloud" | "history" | "instruction" | "clipboard" | "files";
-	onNavigate: (view: "dashboard" | "image-prompt" | "image-cloud" | "history" | "instruction" | "clipboard" | "files") => void;
+	activeView: "dashboard" | "image-prompt" | "image-cloud" | "history" | "instruction" | "clipboard" | "files" | "ai-chat";
+	onNavigate: (view: "dashboard" | "image-prompt" | "image-cloud" | "history" | "instruction" | "clipboard" | "files" | "ai-chat") => void;
 };
 
 export function Dashboard({ activeView, onNavigate }: DashboardProps) {
@@ -43,14 +44,21 @@ export function Dashboard({ activeView, onNavigate }: DashboardProps) {
 						className={activeView === "image-prompt" ? "nav-item nav-item--active" : "nav-item"}
 						onClick={() => onNavigate("image-prompt")}
 					>
-						<span>Image Prompt</span>
+						<span>G-Prompt</span>
 					</button>
 					<button
 						type="button"
 						className={activeView === "image-cloud" ? "nav-item nav-item--active" : "nav-item"}
 						onClick={() => onNavigate("image-cloud")}
 					>
-						<span>Image Cloud</span>
+						<span>CloudFlare</span>
+					</button>
+					<button
+						type="button"
+						className={activeView === "ai-chat" ? "nav-item nav-item--active" : "nav-item"}
+						onClick={() => onNavigate("ai-chat")}
+					>
+						<span>AI-Chat</span>
 					</button>
 					<button
 						type="button"
@@ -108,6 +116,9 @@ export function Dashboard({ activeView, onNavigate }: DashboardProps) {
 				<button type="button" className="mobile-nav-button" onClick={() => onNavigate("image-cloud")}>
 					Image Cloud
 				</button>
+				<button type="button" className="mobile-nav-button" onClick={() => onNavigate("ai-chat")}>
+					AI Chat
+				</button>
 			</div>
 
 			<div className="dashboard-content">
@@ -133,6 +144,10 @@ export function Dashboard({ activeView, onNavigate }: DashboardProps) {
 				) : activeView === "image-cloud" ? (
 					<div className="dashboard-card dashboard-card--full">
 						<ImageCloud embedded onBackToDashboard={() => onNavigate("dashboard")} />
+					</div>
+				) : activeView === "ai-chat" ? (
+					<div className="dashboard-card dashboard-card--full">
+						<AIChat embedded onBackToDashboard={() => onNavigate("dashboard")} />
 					</div>
 			) : activeView === "history" ? (
 				<div className="dashboard-card dashboard-card--full">

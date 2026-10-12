@@ -1075,12 +1075,6 @@ export function Files({ embedded }: FilesProps) {
 						<button type="button" className="toggle-btn secondary" aria-expanded={false} onClick={() => document.getElementById("configBody")?.classList.toggle("hidden")}>v</button>
 					</div>
 					<div id="configBody" className="hidden">
-						<div className="compact-links">
-							<button type="button" className="secondary small-btn" onClick={() => window.open("/clipboard", "_blank", "noopener,noreferrer")}>clipboard</button>
-							<button type="button" className="secondary small-btn" onClick={() => window.open("/text-ai", "_blank", "noopener,noreferrer")}>text-ai</button>
-							<button type="button" className="secondary small-btn" onClick={() => window.open("/flux-image", "_blank", "noopener,noreferrer")}>flux-image</button>
-							<button type="button" className="secondary small-btn" onClick={() => window.open("/image-prompt", "_blank", "noopener,noreferrer")}>image-prompt</button>
-						</div>
 						<div className="form-grid">
 							<div className="field-card">
 								<label htmlFor="endpoint">S3 Endpoint</label>

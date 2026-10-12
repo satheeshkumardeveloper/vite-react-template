@@ -4,6 +4,8 @@
 interface __BaseEnv_Env {
 	IMAGES: R2Bucket;
 	DB: D1Database;
+    CF_ACCOUNT_ID: string;
+    CF_AI_API_TOKEN: string;
 	ENVIRONMENT: string;
 	DB_HOST: string;
 	DB_USER: string;
@@ -25,7 +27,7 @@ type StringifyValues<EnvType extends Record<string, unknown>> = {
 	[Binding in keyof EnvType]: EnvType[Binding] extends string ? EnvType[Binding] : string;
 };
 declare namespace NodeJS {
-	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "ENVIRONMENT" | "DB_HOST" | "DB_USER" | "DB_PASSWORD" | "DB_NAME" | "DB_PORT" | "GEMINI_API_KEY_PRIMARY" | "GEMINI_API_KEY_SECONDARY" | "GEMINI_API_KEY_TERTIARY">> {}
+    interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "ENVIRONMENT" | "DB_HOST" | "DB_USER" | "DB_PASSWORD" | "DB_NAME" | "DB_PORT" | "GEMINI_API_KEY_PRIMARY" | "GEMINI_API_KEY_SECONDARY" | "GEMINI_API_KEY_TERTIARY" | "CF_ACCOUNT_ID" | "CF_AI_API_TOKEN">> {}
 }
 
 // Begin runtime types
