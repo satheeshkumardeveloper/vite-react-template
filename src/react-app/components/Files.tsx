@@ -271,9 +271,41 @@ export function Files({ embedded }: FilesProps) {
 		});
 	}, [files, folderFilter, searchTerm]);
 
+	const loadFilesByFolder = async (folderPath: string) => {
+		try {
+			if (SYSTEM_MODE === 0) {
+				// Mock mode: filter sample files by folder
+				const filtered = SAMPLE_MOCK_FILES.filter((item) => {
+					const itemFolder = getFolderPathFromKey(item.Key || "");
+					if (folderPath === "(root)") return itemFolder === "(root)";
+					return itemFolder === folderPath || itemFolder.startsWith(`${folderPath}/`);
+				});
+				const visibleFiles = filtered.filter((item) => !isThumbCacheKey(item.Key));
+				setFiles(visibleFiles);
+			} else {
+				const response = await fetch(`${FILE_API_BASE}/by-folder?folder=${encodeURIComponent(folderPath)}`, {
+					cache: "no-store",
+				});
+				if (!response.ok) {
+					throw new Error(await response.text());
+				}
+				const payload = (await response.json()) as FileRecord[];
+				const visibleFiles = payload.filter((item) => !isThumbCacheKey(item.Key));
+				setFiles(visibleFiles);
+			}
+			setSelectedKeys([]);
+			setStatusMessage(`Loaded files from ${folderPath}.`, "ok");
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			setFiles([]);
+			setStatusMessage(`Failed to load files: ${message}`, "error");
+		}
+	};
+
 	const browseFolder = (path: string) => {
 		setFolderFilter(path);
 		setGalleryViewEnabled(false);
+		loadFilesByFolder(path);
 	};
 
 	const handleSelectRow = (key: string, checked: boolean) => {
@@ -377,33 +409,36 @@ export function Files({ embedded }: FilesProps) {
 		setStatusMessage("Cleared pasted and URL files.");
 	};
 
-	const listFiles = async () => {
+	const loadFolders = async () => {
 		try {
-			setStatusMessage("Loading files...");
-			let result: FileRecord[] = [];
+			setStatusMessage("Loading folder structure...");
 			if (SYSTEM_MODE === 0) {
-				result = JSON.parse(JSON.stringify(SAMPLE_MOCK_FILES));
+				// Mock mode: extract folders from sample files
+				const folderSet = new Set<string>();
+				for (const item of SAMPLE_MOCK_FILES) {
+					const folderPath = getFolderPathFromKey(item.Key || "");
+					if (folderPath && folderPath !== "(root)") folderSet.add(folderPath);
+				}
+				const folders = Array.from(folderSet).sort((a, b) => a.localeCompare(b));
+				setUploadFolderOptions(folders);
 			} else {
-				const response = await fetch(FILE_API_BASE, { cache: "no-store" });
+				const response = await fetch(`${FILE_API_BASE}/folders`, { cache: "no-store" });
 				if (!response.ok) {
 					throw new Error(await response.text());
 				}
-				const payload = (await response.json()) as FileRecord[];
-				result = payload;
+				const payload = (await response.json()) as { folders: string[] };
+				setUploadFolderOptions(payload.folders || []);
 			}
-			const visibleFiles = result.filter((item) => !isThumbCacheKey(item.Key));
-			setFiles(visibleFiles);
-			setSelectedKeys([]);
-			setStatusMessage("List updated.", "ok");
+			// After loading folders, load files for (root) folder
+			await loadFilesByFolder("(root)");
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
-			setFiles([]);
-			setStatusMessage(`List failed: ${message}`, "error");
+			setStatusMessage(`Failed to load folders: ${message}`, "error");
 		}
 	};
 
 	useEffect(() => {
-		listFiles();
+		loadFolders();
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
@@ -436,7 +471,7 @@ export function Files({ embedded }: FilesProps) {
 				}
 				setSelectedKeys([]);
 				setStatusMessage(`Deleted ${selectedKeys.length} selected file${selectedKeys.length === 1 ? "" : "s"}.`, "ok");
-				await listFiles();
+				await loadFilesByFolder(folderFilter);
 			} catch (error) {
 				const message = error instanceof Error ? error.message : String(error);
 				setStatusMessage(`Delete failed: ${message}`, "error");
@@ -482,6 +517,7 @@ export function Files({ embedded }: FilesProps) {
 			return;
 		}
 		try {
+			setUploadProgress({ visible: true, percent: 0, label: "Preparing upload..." });
 			const targetFolderName = uploadFolderName.trim();
 			const uploadBasePrefix = getUploadBasePrefix(settings.prefix, targetFolderName);
 			if (SYSTEM_MODE === 0) {
@@ -489,6 +525,8 @@ export function Files({ embedded }: FilesProps) {
 					const file = selectedItems[i];
 					const key = getObjectKeyFromFile(file, uploadBasePrefix);
 					setFiles((prev) => [...prev, { Key: key, LastModified: new Date(), ETag: `"mock-etag-${Date.now()}-${i}"`, Size: file.size, StorageClass: "STANDARD" }]);
+					const progress = ((i + 1) / selectedItems.length) * 100;
+					setUploadProgress({ visible: true, percent: progress, label: `Uploading ${i + 1}/${selectedItems.length}...` });
 				}
 				setStatusMessage(`Upload complete (${selectedItems.length} file${selectedItems.length === 1 ? "" : "s"}).`, "ok");
 				if (fileInputRef.current) fileInputRef.current.value = "";
@@ -496,7 +534,8 @@ export function Files({ embedded }: FilesProps) {
 				setPastedImages([]);
 				setUrlFiles([]);
 				setUploadFolderName("");
-				await listFiles();
+				setUploadProgress({ visible: false, percent: 100, label: "Upload complete" });
+				await loadFolders();
 			} else {
 				const formData = new FormData();
 				formData.append("prefix", uploadBasePrefix);
@@ -508,9 +547,14 @@ export function Files({ embedded }: FilesProps) {
 				if (settings.accessKey) formData.append("accessKey", settings.accessKey);
 				if (settings.secretKey) formData.append("secretKey", settings.secretKey);
 				
-				for (const file of selectedItems) {
+				for (let i = 0; i < selectedItems.length; i++) {
+					const file = selectedItems[i];
 					formData.append("files", file, file.name);
+					const progress = ((i + 1) / selectedItems.length) * 50;
+					setUploadProgress({ visible: true, percent: progress, label: `Preparing ${i + 1}/${selectedItems.length}...` });
 				}
+				
+				setUploadProgress({ visible: true, percent: 50, label: "Sending to server..." });
 				const response = await fetch(`${FILE_API_BASE}/upload`, {
 					method: "POST",
 					body: formData,
@@ -518,13 +562,15 @@ export function Files({ embedded }: FilesProps) {
 				if (!response.ok) {
 					throw new Error(await response.text());
 				}
+				setUploadProgress({ visible: true, percent: 100, label: "Upload complete" });
 				setStatusMessage(`Upload complete (${selectedItems.length} file${selectedItems.length === 1 ? "" : "s"}).`, "ok");
 				if (fileInputRef.current) fileInputRef.current.value = "";
 				if (folderInputRef.current) folderInputRef.current.value = "";
 				setPastedImages([]);
 				setUrlFiles([]);
 				setUploadFolderName("");
-				await listFiles();
+				setTimeout(() => setUploadProgress({ visible: false, percent: 0, label: "Preparing upload..." }), 800);
+				await loadFolders();
 			}
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
@@ -621,7 +667,7 @@ export function Files({ embedded }: FilesProps) {
 					}
 				}
 				setStatusMessage("File deleted.", "ok");
-				await listFiles();
+				await loadFilesByFolder(folderFilter);
 			} catch (error) {
 				const message = error instanceof Error ? error.message : String(error);
 				setStatusMessage(`Delete failed: ${message}`, "error");
@@ -767,7 +813,7 @@ export function Files({ embedded }: FilesProps) {
 					<span className="pill">{files.length} file{files.length === 1 ? "" : "s"}</span>
 				</div>
 						<div className="list-top-center">
-							<button type="button" className="secondary" onClick={listFiles}>Refresh List</button>
+							<button type="button" className="secondary" onClick={() => loadFilesByFolder(folderFilter)}>Refresh List</button>
 						</div>
 						<div className="list-top-right select-tools">
 							<button type="button" className={`icon-btn secondary ${showThumbs ? "active" : ""}`} onClick={() => setShowThumbs((prev) => !prev)} title={showThumbs ? "Thumbnails ON — click to disable" : "Thumbnails OFF — click to enable"} aria-label="Toggle thumbnails" aria-pressed={showThumbs}>
