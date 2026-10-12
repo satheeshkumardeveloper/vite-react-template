@@ -185,43 +185,33 @@ function getThumbKey(originalKey: string): string {
 }
 
 async function makeThumbDataUrl(url: string, size = 80, quality = 0.55): Promise<string> {
-	try {
-		const response = await fetch(url);
-		if (!response.ok) return "";
-		const blob = await response.blob();
-		const img = new Image();
-		img.onload = () => {
-			const canvas = document.createElement("canvas");
-			canvas.width = size;
-			canvas.height = size;
-			const ctx = canvas.getContext("2d");
-			if (ctx) {
-				const scale = Math.max(size / img.width, size / img.height);
-				const x = (size / 2) - (img.width / 2) * scale;
-				const y = (size / 2) - (img.height / 2) * scale;
-				ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
-			}
-		};
-		img.src = URL.createObjectURL(blob);
-		return new Promise((resolve) => {
+	return new Promise((resolve) => {
+		try {
+			const img = new Image();
+			img.crossOrigin = "anonymous";
 			img.onload = () => {
-				const canvas = document.createElement("canvas");
-				canvas.width = size;
-				canvas.height = size;
-				const ctx = canvas.getContext("2d");
-				if (ctx) {
-					const scale = Math.max(size / img.width, size / img.height);
-					const x = (size / 2) - (img.width / 2) * scale;
-					const y = (size / 2) - (img.height / 2) * scale;
-					ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
+				try {
+					const canvas = document.createElement("canvas");
+					canvas.width = size;
+					canvas.height = size;
+					const ctx = canvas.getContext("2d");
+					if (ctx) {
+						const scale = Math.max(size / img.width, size / img.height);
+						const x = (size / 2) - (img.width / 2) * scale;
+						const y = (size / 2) - (img.height / 2) * scale;
+						ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
+					}
+					resolve(canvas.toDataURL("image/jpeg", quality));
+				} catch {
+					resolve("");
 				}
-				resolve(canvas.toDataURL("image/jpeg", quality));
-				URL.revokeObjectURL(img.src);
 			};
-		});
-	} catch {
-		return "";
-	}
+			img.onerror = () => resolve("");
+			img.src = url;
+		} catch {
+			resolve("");
+		}
+	});
 }
 
 async function uploadThumbToR2(
@@ -261,24 +251,27 @@ async function loadThumbWithCache(
 ): Promise<string> {
 	const thumbKey = getThumbKey(originalKey);
 
-	// Try to load thumb from R2
+	// Try to load thumb from R2 - construct the proper download URL for thumbs folder
 	try {
-		const downloadUrl = new URLSearchParams({ key: thumbKey }).toString();
-		const thumbUrl = `${FILE_API_BASE}/download?${downloadUrl}`;
-		const response = await fetch(thumbUrl, { cache: "no-store" });
+		const thumbDownloadUrl = `${FILE_API_BASE}/download?key=${encodeURIComponent(thumbKey)}`;
+		const response = await fetch(thumbDownloadUrl, { cache: "no-store" });
 		if (response.ok) {
-			return thumbUrl;
+			return thumbDownloadUrl;
 		}
 	} catch {
 		// Thumb not found, will create
 	}
 
 	// Thumb doesn't exist, create and upload
-	const thumbDataUrl = await makeThumbDataUrl(signedOriginalUrl, 80, 0.55);
-	if (thumbDataUrl) {
-		await uploadThumbToR2(settings, thumbKey, thumbDataUrl);
-		const downloadUrl = new URLSearchParams({ key: thumbKey }).toString();
-		return `${FILE_API_BASE}/download?${downloadUrl}`;
+	if (!signedOriginalUrl.startsWith("data:")) {
+		const thumbDataUrl = await makeThumbDataUrl(signedOriginalUrl, 80, 0.55);
+		if (thumbDataUrl) {
+			const uploadSuccess = await uploadThumbToR2(settings, thumbKey, thumbDataUrl);
+			if (uploadSuccess) {
+				const thumbDownloadUrl = `${FILE_API_BASE}/download?key=${encodeURIComponent(thumbKey)}`;
+				return thumbDownloadUrl;
+			}
+		}
 	}
 
 	// Fallback to original
@@ -1006,23 +999,19 @@ export function Files({ embedded }: FilesProps) {
 												<td className="key-cell">
 													{isImageKey(item.Key) ? (
 														<>
-															<div className="thumb-placeholder" style={{ display: showThumbs ? "none" : "flex" }}>🖼️</div>
-															<img
-																className="thumb"
-																alt={item.Key}
-																title="Click to preview"
-																loading="lazy"
-																style={{ display: showThumbs ? "block" : "none" }}
-																src=""
-																onClick={async () => {
-																	try {
-																		const url = await getDownloadUrl(item.Key, false);
-																		setThumbModalSrc(url);
-																	} catch {
-																		setThumbModalSrc(`data:text/plain,${encodeURIComponent(item.Key)}`);
-																	}
-																}}
-															/>
+															{showThumbs && thumbUrls[item.Key] ? (
+																<img
+																	className="thumb"
+																	alt={item.Key}
+																	title="Click to preview thumbnail"
+																	loading="lazy"
+																	src={thumbUrls[item.Key]}
+																	onClick={() => setThumbModalSrc(thumbUrls[item.Key])}
+																	style={{ cursor: "pointer" }}
+																/>
+															) : (
+																<div className="thumb-placeholder">🖼️</div>
+															)}
 														</>
 													) : (
 														<div className="thumb-placeholder">{getFileIcon(item.Key)}</div>
