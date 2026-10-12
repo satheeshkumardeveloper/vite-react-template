@@ -592,21 +592,12 @@ app.post("/api/files/upload", async (c) => {
 
 		const uploadedKeys: string[] = [];
 
-		// If credentials provided, use S3 SDK; otherwise fall back to R2 binding
+		// If credentials provided, use S3 API via fetch; otherwise fall back to R2 binding
 		if (endpoint && bucket && region && accessKey && secretKey) {
-			// Use S3-compatible upload via AWS SDK
+			// Use S3-compatible upload via fetch with Basic Auth
 			try {
-				const { S3Client, PutObjectCommand } = await import("@aws-sdk/client-s3");
-				
-				const s3Client = new S3Client({
-					region,
-					credentials: {
-						accessKeyId: accessKey,
-						secretAccessKey: secretKey,
-					},
-					endpoint: endpoint.startsWith("http") ? endpoint : `https://${endpoint}`,
-					forcePathStyle: true,
-				});
+				const s3Endpoint = endpoint.startsWith("http") ? endpoint : `https://${endpoint}`;
+				const s3BaseUrl = `${s3Endpoint}/${bucket}`;
 
 				for (const file of files) {
 					const relativePath = String((file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name || "upload.bin")
@@ -617,12 +608,29 @@ app.post("/api/files/upload", async (c) => {
 					const key = prefix ? `${prefix.replace(/^\/+|\/+$/g, "")}/${normalizedPath.replace(/^\/+/, "")}` : normalizedPath.replace(/^\/+/, "");
 					
 					const buffer = await file.arrayBuffer();
-					await s3Client.send(new PutObjectCommand({
-						Bucket: bucket,
-						Key: key,
-						Body: new Uint8Array(buffer),
-						ContentType: file.type || "application/octet-stream",
-					}));
+					const url = `${s3BaseUrl}/${key}`;
+
+					// Encode credentials for Basic Auth (compatible with S3-compatible services)
+					const credentialsStr = `${accessKey}:${secretKey}`;
+					const encoder = new TextEncoder();
+					const credentialsBytes = encoder.encode(credentialsStr);
+					const credentialsArray = Array.from(credentialsBytes);
+					const base64Credentials = btoa(String.fromCharCode(...credentialsArray));
+					
+					const uploadResponse = await fetch(url, {
+						method: "PUT",
+						headers: {
+							"Content-Type": file.type || "application/octet-stream",
+							"Authorization": `Basic ${base64Credentials}`,
+						},
+						body: new Uint8Array(buffer),
+					});
+
+					if (!uploadResponse.ok) {
+						const errorText = await uploadResponse.text();
+						throw new Error(`S3 upload failed for ${key}: ${uploadResponse.status} - ${errorText}`);
+					}
+
 					uploadedKeys.push(key);
 				}
 			} catch (sdkError) {
