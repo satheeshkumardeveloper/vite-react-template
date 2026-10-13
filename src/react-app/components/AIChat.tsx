@@ -38,26 +38,55 @@ type SavedHistoryItem = {
 	created_at: string;
 };
 
+const SAMPLE_HISTORY: SavedHistoryItem[] = [
+	{
+		id: 1,
+		title: "Website copy ideas",
+		content: "Here are a few product headline ideas:\n\n- Launch faster with clarity\n- Build smarter workflows\n- Turn ideas into action",
+		created_at: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
+	},
+	{
+		id: 2,
+		title: "Meeting summary",
+		content: "Summary:\n\n- Confirmed product launch timeline\n- Agreed on marketing plan\n- Next step is to review the onboarding flow",
+		created_at: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
+	},
+];
+
+const HISTORY_PAGE_SIZE = 10;
+
 export function AIChat(_props: AIChatProps) {
-	const [messages, setMessages] = useState<ChatMessage[]>([
-		{
-			id: makeId(),
-			role: "assistant",
-			content: "Hello. I am ready to chat with you.",
-		},
-	]);
+	const [messages, setMessages] = useState<ChatMessage[]>(
+		[
+			{
+				id: makeId(),
+				role: "assistant",
+				content: "Hello. I am ready to chat with you.",
+			},
+		]
+	);
 	const [draft, setDraft] = useState("");
 	const [selectedModel, setSelectedModel] = useState(MODEL_OPTIONS[0].value);
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState("");
 	const [activeTab, setActiveTab] = useState<"chat" | "history">("chat");
-	const [savedHistory, setSavedHistory] = useState<SavedHistoryItem[]>([]);
+	const [savedHistory, setSavedHistory] = useState<SavedHistoryItem[]>(SAMPLE_HISTORY);
+	const [historySearch, setHistorySearch] = useState("");
+	const [historyPage, setHistoryPage] = useState(1);
+	const [expandedHistoryId, setExpandedHistoryId] = useState<number | null>(null);
 	const [savedMessageIds, setSavedMessageIds] = useState<Record<string, boolean>>({});
-	const [saveDialog, setSaveDialog] = useState<{ open: boolean; messageId: string | null; title: string; content: string }>({
+	const [saveDialog, setSaveDialog] = useState<{ open: boolean; messageId: string | null; title: string; content: string }>(
+		{
+			open: false,
+			messageId: null,
+			title: "",
+			content: "",
+		}
+	);
+	const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; id: number | null; title: string }>({
 		open: false,
-		messageId: null,
+		id: null,
 		title: "",
-		content: "",
 	});
 	const messagesEndRef = useRef<HTMLDivElement | null>(null);
 	const textareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -65,12 +94,14 @@ export function AIChat(_props: AIChatProps) {
 	const loadSavedHistory = async () => {
 		try {
 			const response = await fetch("/api/saved-history");
-			const payload = (await response.json().catch(() => ({ results: [] }))) as { results?: SavedHistoryItem[] };
+			const payload = (await response.json().catch(() => ({ results: SAMPLE_HISTORY }))) as { results?: SavedHistoryItem[] };
 			if (!response.ok) {
-				throw new Error(payload?.results ? "Unable to load history" : "Unable to load history");
+				throw new Error("Unable to load history");
 			}
-			setSavedHistory(Array.isArray(payload.results) ? payload.results : []);
+			const nextHistory = Array.isArray(payload.results) && payload.results.length > 0 ? payload.results : SAMPLE_HISTORY;
+			setSavedHistory(nextHistory);
 		} catch (historyError) {
+			setSavedHistory(SAMPLE_HISTORY);
 			setError(historyError instanceof Error ? historyError.message : "Unable to load history");
 		}
 	};
@@ -227,6 +258,61 @@ export function AIChat(_props: AIChatProps) {
 		setError("");
 	};
 
+	const filteredHistory = useMemo(() => {
+		const searchTerm = historySearch.trim().toLowerCase();
+		if (!searchTerm) return savedHistory;
+		return savedHistory.filter((item) => item.title.toLowerCase().includes(searchTerm));
+	}, [historySearch, savedHistory]);
+
+	const totalPages = useMemo(() => Math.max(1, Math.ceil(filteredHistory.length / HISTORY_PAGE_SIZE)), [filteredHistory.length]);
+
+	useEffect(() => {
+		setHistoryPage((current) => Math.min(current, totalPages));
+	}, [totalPages]);
+
+	useEffect(() => {
+		setHistoryPage(1);
+	}, [historySearch]);
+
+	const displayHistory = useMemo(() => {
+		const start = (historyPage - 1) * HISTORY_PAGE_SIZE;
+		return filteredHistory.slice(start, start + HISTORY_PAGE_SIZE);
+	}, [filteredHistory, historyPage]);
+
+	const toggleHistoryItem = (id: number) => {
+		setExpandedHistoryId((current) => (current === id ? null : id));
+	};
+
+	const deleteHistoryEntry = async () => {
+		if (!deleteDialog.id) return;
+
+		try {
+			const response = await fetch(`/api/saved-history/${deleteDialog.id}`, {
+				method: "DELETE",
+			});
+
+			const payload = (await response.json().catch(() => ({}))) as { error?: string };
+			if (!response.ok) {
+				throw new Error(payload?.error || "Unable to delete history");
+			}
+
+			setSavedHistory((current) => current.filter((item) => item.id !== deleteDialog.id));
+			setExpandedHistoryId((current) => (current === deleteDialog.id ? null : current));
+			setDeleteDialog({ open: false, id: null, title: "" });
+			setError("");
+		} catch (deleteError) {
+			setError(deleteError instanceof Error ? deleteError.message : "Unable to delete history");
+		}
+	};
+
+	const openDeleteDialog = (item: SavedHistoryItem) => {
+		setDeleteDialog({ open: true, id: item.id, title: item.title || "This history item" });
+	};
+
+	const closeDeleteDialog = () => {
+		setDeleteDialog({ open: false, id: null, title: "" });
+	};
+
 	return (
 		<div className="ai-chat-shell">
 			<div className="ai-chat-header">
@@ -327,21 +413,75 @@ export function AIChat(_props: AIChatProps) {
 						<span>{savedHistory.length} item{savedHistory.length === 1 ? "" : "s"}</span>
 					</div>
 
-					{savedHistory.length === 0 ? (
-						<div className="ai-chat-empty-history">No saved response yet.</div>
+					<div className="ai-chat-history-search-wrap">
+						<input
+							type="text"
+							value={historySearch}
+							placeholder="Search by title"
+							onChange={(event) => setHistorySearch(event.target.value)}
+						/>
+					</div>
+
+					{filteredHistory.length === 0 ? (
+						<div className="ai-chat-empty-history">No matching saved response.</div>
 					) : (
-						<div className="ai-chat-history-list">
-							{savedHistory.map((item) => (
-								<div key={item.id} className="ai-chat-history-item">
-									<div className="ai-chat-history-meta">
-										<span className="ai-chat-history-title">{item.title}</span>
-										<small>{new Date(item.created_at).toLocaleString()}</small>
-									</div>
-									<div className="ai-chat-history-content">{item.content}</div>
-								</div>
-							))}
-						</div>
+						<>
+							<div className="ai-chat-history-list">
+								{displayHistory.map((item) => {
+									const isExpanded = expandedHistoryId === item.id;
+									return (
+										<div key={item.id} className="ai-chat-history-item">
+											<button
+												type="button"
+												className="ai-chat-history-title-button"
+												onClick={() => toggleHistoryItem(item.id)}
+											>
+												<span>{item.title}</span>
+												<small>{new Date(item.created_at).toLocaleString()}</small>
+											</button>
+											{isExpanded ? (
+												<div className="ai-chat-history-content">{item.content}</div>
+											) : null}
+											<div className="ai-chat-history-actions">
+												<button
+													type="button"
+													className="ai-chat-delete-button"
+													onClick={() => openDeleteDialog(item)}
+													aria-label="Delete history item"
+												>
+													🗑️
+												</button>
+											</div>
+										</div>
+									);
+								})}
+							</div>
+
+							<div className="ai-chat-history-pagination">
+								<button
+									type="button"
+									className="ai-chat-pagination-button"
+									onClick={() => setHistoryPage((current) => Math.max(1, current - 1))}
+									disabled={historyPage === 1}
+								>
+									&laquo; Previous
+								</button>
+								<span className="ai-chat-pagination-info">
+									Page {historyPage} of {totalPages}
+								</span>
+								<button
+									type="button"
+									className="ai-chat-pagination-button"
+									onClick={() => setHistoryPage((current) => Math.min(totalPages, current + 1))}
+									disabled={historyPage === totalPages}
+								>
+									Next &raquo;
+								</button>
+							</div>
+						</>
 					)}
+
+					
 				</div>
 			)}
 
@@ -376,6 +516,32 @@ export function AIChat(_props: AIChatProps) {
 								type="button"
 								className="ai-chat-cancel-button"
 								onClick={closeSaveDialog}
+							>
+								Cancel
+							</button>
+						</div>
+						{error ? <p className="ai-chat-error">{error}</p> : null}
+					</div>
+				</div>
+			) : null}
+
+			{deleteDialog.open ? (
+				<div className="ai-chat-delete-dialog">
+					<div className="ai-chat-delete-dialog-content">
+						<h3>Confirm Deletion</h3>
+						<p>Are you sure you want to delete the history item: <strong>{deleteDialog.title}</strong>?</p>
+						<div className="ai-chat-delete-dialog-actions">
+							<button
+								type="button"
+								className="ai-chat-delete-confirm-button"
+								onClick={deleteHistoryEntry}
+							>
+								Delete
+							</button>
+							<button
+								type="button"
+								className="ai-chat-cancel-button"
+								onClick={closeDeleteDialog}
 							>
 								Cancel
 							</button>

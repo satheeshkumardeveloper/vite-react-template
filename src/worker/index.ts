@@ -1009,4 +1009,28 @@ app.get("/api/saved-history", async (c) => {
 	}
 });
 
+app.delete("/api/saved-history/:id", async (c) => {
+	try {
+		const db = c.env.DB as D1Database;
+		if (!db) {
+			return c.json({ error: "D1 binding DB is missing in Worker environment." }, 500);
+		}
+
+		const id = Number(c.req.param("id"));
+		if (!Number.isFinite(id) || id <= 0) {
+			return c.json({ error: "Invalid history id." }, 400);
+		}
+
+		const existing = await db.prepare("SELECT id FROM saved_history WHERE id = ?").bind(id).first();
+		if (!existing) {
+			return c.json({ error: "Saved history item not found" }, 404);
+		}
+
+		await db.prepare("DELETE FROM saved_history WHERE id = ?").bind(id).run();
+		return c.json({ success: true, id }, 200);
+	} catch (error) {
+		return c.json({ error: error instanceof Error ? error.message : String(error) }, 500);
+	}
+});
+
 export default app;

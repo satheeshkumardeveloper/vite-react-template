@@ -418,35 +418,173 @@
 .ai-chat-history-item {
 	display: flex;
 	flex-direction: column;
-	gap: 10px;
-	padding: 16px;
-	border-radius: 16px;
-	background: rgba(255, 255, 255, 0.04);
+	gap: 8px;
+	padding: 0;
+	border-radius: 14px;
+	background: rgba(255, 255, 255, 0.03);
 	border: 1px solid rgba(255, 255, 255, 0.08);
+	overflow: hidden;
+	position: relative;
 }
 
-.ai-chat-history-meta {
+.ai-chat-history-title-button {
 	display: flex;
 	justify-content: space-between;
-	gap: 12px;
-	flex-wrap: wrap;
 	align-items: center;
-}
-
-.ai-chat-history-title {
+	gap: 12px;
+	width: 100%;
+	padding: 14px 44px 14px 16px;
+	border: none;
+	background: transparent;
+	color: #f2f6ff;
+	font: inherit;
 	font-weight: 700;
-	color: #f3f6ff;
+	text-align: left;
+	cursor: pointer;
 }
 
-.ai-chat-history-meta small {
-	color: #9bb0e5;
+.ai-chat-history-actions {
+	position: absolute;
+	right: 10px;
+	top: 10px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.ai-chat-delete-button {
+	width: 28px;
+	height: 28px;
+	display: grid;
+	place-items: center;
+	padding: 0;
+	border: 1px solid rgba(255, 255, 255, 0.12);
+	border-radius: 9px;
+	background: rgba(255, 255, 255, 0.04);
+	color: #e8eeff;
+	font-size: 12px;
+	cursor: pointer;
+	transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.ai-chat-delete-button:hover {
+	background: rgba(239, 68, 68, 0.12);
+	transform: translateY(-1px);
 }
 
 .ai-chat-history-content {
+	padding: 0 16px 16px;
 	white-space: pre-wrap;
 	word-break: break-word;
 	line-height: 1.7;
 	color: #e6edff;
+	border-top: 1px solid rgba(255, 255, 255, 0.06);
+	padding-top: 14px;
+}
+
+.ai-chat-history-search-wrap {
+	display: flex;
+	margin-bottom: 8px;
+}
+
+.ai-chat-history-search-wrap input {
+	width: 100%;
+	border: 1px solid rgba(255, 255, 255, 0.12);
+	border-radius: 12px;
+	background: rgba(12, 16, 31, 0.8);
+	color: #f7f9ff;
+	padding: 12px 14px;
+	font: inherit;
+}
+
+.ai-chat-history-pagination {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 10px;
+	margin-top: 8px;
+	color: #dfe7ff;
+	font-size: 12px;
+}
+
+.ai-chat-history-pagination button {
+	border: 1px solid rgba(255, 255, 255, 0.12);
+	border-radius: 10px;
+	padding: 8px 12px;
+	background: rgba(255, 255, 255, 0.04);
+	color: #eff3ff;
+	font: inherit;
+	cursor: pointer;
+}
+
+.ai-chat-history-pagination button:disabled {
+	opacity: 0.45;
+	cursor: not-allowed;
+}
+
+.ai-chat-delete-dialog {
+	position: fixed;
+	inset: 0;
+	background: rgba(3, 7, 18, 0.72);
+	backdrop-filter: blur(8px);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 20px;
+	z-index: 60;
+}
+
+.ai-chat-delete-dialog-content {
+	width: min(460px, 100%);
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+	padding: 22px 20px 18px;
+	border-radius: 18px;
+	background: linear-gradient(180deg, rgba(17, 24, 39, 0.98), rgba(15, 20, 35, 0.98));
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	box-shadow: 0 30px 90px rgba(0, 0, 0, 0.5);
+}
+
+.ai-chat-delete-dialog-content h3 {
+	margin: 0;
+	font-size: 22px;
+	color: #f7f9ff;
+}
+
+.ai-chat-delete-dialog-content p {
+	margin: 0;
+	font-size: 14px;
+	line-height: 1.6;
+	color: #d9e5ff;
+}
+
+.ai-chat-delete-dialog-content strong {
+	color: #ffffff;
+}
+
+.ai-chat-delete-dialog-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 10px;
+	margin-top: 8px;
+	flex-wrap: wrap;
+}
+
+.ai-chat-delete-confirm-button {
+	border: none;
+	border-radius: 10px;
+	padding: 10px 16px;
+	background: linear-gradient(135deg, #ef4444, #dc2626);
+	color: white;
+	font: inherit;
+	font-weight: 700;
+	cursor: pointer;
+	box-shadow: 0 12px 28px rgba(239, 68, 68, 0.28);
+}
+
+.ai-chat-delete-confirm-button:hover {
+	opacity: 0.96;
 }
 
 @media (max-width: 768px) {
@@ -479,5 +617,23 @@
 
 	.ai-chat-bubble {
 		max-width: calc(100% - 50px);
+	}
+}
+
+@media (max-width: 480px) {
+	.ai-chat-delete-dialog {
+		padding: 16px;
+	}
+
+	.ai-chat-delete-dialog-content {
+		padding: 18px 16px 16px;
+	}
+
+	.ai-chat-delete-dialog-actions {
+		flex-direction: column-reverse;
+	}
+
+	.ai-chat-delete-dialog-actions button {
+		width: 100%;
 	}
 }
