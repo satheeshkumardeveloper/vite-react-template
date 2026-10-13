@@ -6,8 +6,9 @@ app.get("/api/", (c) => c.json({ name: "Cloudflare Satheesh" }));
 app.post("/api/ai-chat", async (c) => {
 	try {
 		const body = await c.req.json();
-		const selectedModel = String(body?.model || "@cf/zai-org/glm-4.7-flash").trim();
+		const selectedModel = String(body?.model || "gemini-2.5-flash").trim();
 		const allowedModels = [
+			"gemini-2.5-flash",
 			"@cf/zai-org/glm-4.7-flash",
 			"@cf/meta/llama-3.2-1b-instruct",
 			"@cf/meta/llama-3.2-3b-instruct",
@@ -33,6 +34,76 @@ app.post("/api/ai-chat", async (c) => {
 
 		if (!messages.length) {
 			return c.json({ error: "messages are required" }, 400);
+		}
+
+		if (selectedModel.startsWith("gemini-")) {
+			const apiKey = c.env.GEMINI_API_KEY_PRIMARY;
+			if (!apiKey) {
+				return c.json({ error: "Missing GEMINI_API_KEY_PRIMARY in Worker environment." }, 500);
+			}
+
+			const systemText = messages
+				.filter((message) => message.role === "system")
+				.map((message) => message.content)
+				.join("\n\n")
+				.trim();
+
+			const geminiMessages = messages
+				.filter((message) => message.role !== "system")
+				.map((message) => ({
+					role: message.role === "assistant" ? "model" : "user",
+					parts: [{ text: message.content }],
+				}));
+
+			if (!geminiMessages.length) {
+				return c.json({ error: "messages are required" }, 400);
+			}
+
+			const upstream = await fetch(
+				`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(selectedModel)}:generateContent?key=${apiKey}`,
+				{
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+					},
+					body: JSON.stringify({
+						...(systemText ? { systemInstruction: { parts: [{ text: systemText }] } } : {}),
+						contents: geminiMessages,
+						generationConfig: {
+							maxOutputTokens: 2048,
+						},
+					}),
+				},
+			);
+
+			const rawText = await upstream.text();
+			let output: any = null;
+
+			try {
+				output = JSON.parse(rawText);
+			} catch {
+				return c.json({ error: "Invalid Gemini response", raw: rawText }, 502);
+			}
+
+			if (!upstream.ok || output?.error) {
+				return new Response(
+					JSON.stringify({ error: output?.error?.message || "Google Gemini request failed", upstream: output }),
+					{
+						status: upstream.status || 502,
+						headers: { "content-type": "application/json;charset=UTF-8" },
+					},
+				);
+			}
+
+			const assistantText = String(output?.candidates?.[0]?.content?.parts?.map((part: { text?: string }) => part.text || "").join("") || "").trim();
+			const tokenUsage = output?.usageMetadata || null;
+
+			return c.json({
+				response: assistantText,
+				model: output?.model || selectedModel,
+				usage: tokenUsage,
+				id: output?.responseId || output?.id || null,
+			});
 		}
 
 		const env = c.env as unknown as Record<string, string | undefined>;

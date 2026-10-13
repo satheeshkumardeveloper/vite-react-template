@@ -19,6 +19,7 @@ type ChatMessage = {
 };
 
 const MODEL_OPTIONS = [
+	{ value: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
 	{ value: "@cf/zai-org/glm-4.7-flash", label: "GLM 4.7 Flash" },
 	{ value: "@cf/meta/llama-3.2-1b-instruct", label: "Llama 3.2 1B Instruct" },
 	{ value: "@cf/meta/llama-3.2-3b-instruct", label: "Llama 3.2 3B Instruct" },
