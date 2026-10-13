@@ -7,7 +7,17 @@ app.post("/api/ai-chat", async (c) => {
 	try {
 		const body = await c.req.json();
 		const selectedModel = String(body?.model || "@cf/zai-org/glm-4.7-flash").trim();
-		const allowedModels = ["@cf/zai-org/glm-4.7-flash"];
+		const allowedModels = [
+			"@cf/zai-org/glm-4.7-flash",
+			"@cf/meta/llama-3.2-1b-instruct",
+			"@cf/meta/llama-3.2-3b-instruct",
+			"@cf/google/gemma-7b-it-lora",
+			"@cf/mistralai/mistral-small-3.1-24b-instruct",
+			"@cf/nvidia/nemotron-3-120b-a12b",
+			"@cf/openai/gpt-oss-120b",
+			"@cf/meta/llama-3.2-1b-instruct",
+			"@cf/cloudflare/clef-flash",
+		];
 		const rawMessages = Array.isArray(body?.messages) ? (body.messages as Array<{ role?: unknown; content?: unknown }>) : [];
 
 		if (!allowedModels.includes(selectedModel)) {

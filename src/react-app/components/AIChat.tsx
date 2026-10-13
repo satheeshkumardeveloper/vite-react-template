@@ -15,7 +15,17 @@ type ChatMessage = {
 	status?: "pending" | "error";
 };
 
-const MODEL_OPTIONS = [{ value: "@cf/zai-org/glm-4.7-flash", label: "GLM 4.7 Flash" }];
+const MODEL_OPTIONS = [
+	{ value: "@cf/zai-org/glm-4.7-flash", label: "GLM 4.7 Flash" },
+	{ value: "@cf/meta/llama-3.2-1b-instruct", label: "Llama 3.2 1B Instruct" },
+	{ value: "@cf/meta/llama-3.2-3b-instruct", label: "Llama 3.2 3B Instruct" },
+	{ value: "@cf/google/gemma-7b-it-lora", label: "Gemma 7B IT LoRA" },
+    { value: "@cf/mistralai/mistral-small-3.1-24b-instruct", label: "Mistral Small 3.1 24B Instruct" },
+    { value: "@cf/nvidia/nemotron-3-120b-a12b", label: "Nemotron 3 120B A12B" },
+    { value: "@cf/openai/gpt-oss-120b", label: "GPT OSS 120B" },
+    { value: "@cf/meta/llama-3.2-1b-instruct", label: "Llama 3.2 1B Instruct" },
+    { value: "@cf/cloudflare/clef-flash", label: "Clef Flash" },
+];
 
 function makeId() {
 	return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
@@ -135,7 +145,7 @@ export function AIChat(_props: AIChatProps) {
 				<div>
 					<p className="ai-chat-eyebrow">Cloudflare Workers AI</p>
 					<h2>AI-Chat</h2>
-					<p className="ai-chat-subtitle">ChatGPT-style conversation using GLM 4.7 Flash.</p>
+					<p className="ai-chat-subtitle">ChatGPT-style conversation using Cloudflare-hosted models.</p>
 				</div>
 
 				<div className="ai-chat-header-actions">
