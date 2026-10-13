@@ -346,6 +346,109 @@
 	font-weight: 700;
 }
 
+.ai-chat-tabs {
+	display: inline-flex;
+	gap: 8px;
+	padding: 6px;
+	border-radius: 12px;
+	background: rgba(255, 255, 255, 0.04);
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	width: fit-content;
+}
+
+.ai-chat-tab {
+	border: none;
+	background: transparent;
+	color: #c9d5ff;
+	font: inherit;
+	font-weight: 700;
+	padding: 10px 16px;
+	border-radius: 10px;
+	cursor: pointer;
+}
+
+.ai-chat-tab--active {
+	background: linear-gradient(135deg, rgba(99, 102, 241, 0.18), rgba(6, 182, 212, 0.18));
+	color: #ffffff;
+	box-shadow: inset 0 0 0 1px rgba(129, 140, 248, 0.5);
+}
+
+.ai-chat-history-panel {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+	min-height: 65vh;
+	background: rgba(15, 20, 35, 0.78);
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	border-radius: 22px;
+	padding: 18px;
+	box-shadow: 0 24px 64px rgba(0, 0, 0, 0.42), inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+}
+
+.ai-chat-history-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 12px;
+	flex-wrap: wrap;
+	color: #dfe7ff;
+}
+
+.ai-chat-history-header h3 {
+	margin: 0;
+	font-size: 22px;
+}
+
+.ai-chat-empty-history {
+	display: grid;
+	place-items: center;
+	min-height: 240px;
+	border: 1px dashed rgba(255, 255, 255, 0.14);
+	border-radius: 16px;
+	color: #b8c6ef;
+	background: rgba(255, 255, 255, 0.02);
+}
+
+.ai-chat-history-list {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.ai-chat-history-item {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	padding: 16px;
+	border-radius: 16px;
+	background: rgba(255, 255, 255, 0.04);
+	border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.ai-chat-history-meta {
+	display: flex;
+	justify-content: space-between;
+	gap: 12px;
+	flex-wrap: wrap;
+	align-items: center;
+}
+
+.ai-chat-history-title {
+	font-weight: 700;
+	color: #f3f6ff;
+}
+
+.ai-chat-history-meta small {
+	color: #9bb0e5;
+}
+
+.ai-chat-history-content {
+	white-space: pre-wrap;
+	word-break: break-word;
+	line-height: 1.7;
+	color: #e6edff;
+}
+
 @media (max-width: 768px) {
 	.ai-chat-header {
 		flex-direction: column;

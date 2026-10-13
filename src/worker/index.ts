@@ -992,4 +992,21 @@ app.post("/api/saved-history", async (c) => {
 	}
 });
 
+app.get("/api/saved-history", async (c) => {
+	try {
+		const db = c.env.DB as D1Database;
+		if (!db) {
+			return c.json({ error: "D1 binding DB is missing in Worker environment." }, 500);
+		}
+
+		const rows = await db
+			.prepare("SELECT id, title, content, created_at FROM saved_history ORDER BY created_at DESC")
+			.all();
+
+		return c.json({ results: rows.results || [] }, 200);
+	} catch (error) {
+		return c.json({ error: error instanceof Error ? error.message : String(error) }, 500);
+	}
+});
+
 export default app;

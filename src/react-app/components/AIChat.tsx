@@ -31,6 +31,13 @@ function makeId() {
 	return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+type SavedHistoryItem = {
+	id: number;
+	title: string;
+	content: string;
+	created_at: string;
+};
+
 export function AIChat(_props: AIChatProps) {
 	const [messages, setMessages] = useState<ChatMessage[]>([
 		{
@@ -43,6 +50,8 @@ export function AIChat(_props: AIChatProps) {
 	const [selectedModel, setSelectedModel] = useState(MODEL_OPTIONS[0].value);
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState("");
+	const [activeTab, setActiveTab] = useState<"chat" | "history">("chat");
+	const [savedHistory, setSavedHistory] = useState<SavedHistoryItem[]>([]);
 	const [savedMessageIds, setSavedMessageIds] = useState<Record<string, boolean>>({});
 	const [saveDialog, setSaveDialog] = useState<{ open: boolean; messageId: string | null; title: string; content: string }>({
 		open: false,
@@ -52,6 +61,25 @@ export function AIChat(_props: AIChatProps) {
 	});
 	const messagesEndRef = useRef<HTMLDivElement | null>(null);
 	const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+	const loadSavedHistory = async () => {
+		try {
+			const response = await fetch("/api/saved-history");
+			const payload = (await response.json().catch(() => ({ results: [] }))) as { results?: SavedHistoryItem[] };
+			if (!response.ok) {
+				throw new Error(payload?.results ? "Unable to load history" : "Unable to load history");
+			}
+			setSavedHistory(Array.isArray(payload.results) ? payload.results : []);
+		} catch (historyError) {
+			setError(historyError instanceof Error ? historyError.message : "Unable to load history");
+		}
+	};
+
+	useEffect(() => {
+		if (activeTab === "history") {
+			void loadSavedHistory();
+		}
+	}, [activeTab]);
 
 	const openSaveDialog = (message: ChatMessage) => {
 		if (!message.content) return;
@@ -90,6 +118,9 @@ export function AIChat(_props: AIChatProps) {
 			setSavedMessageIds((current) => ({ ...current, [saveDialog.messageId as string]: true }));
 			closeSaveDialog();
 			setError("");
+			if (activeTab === "history") {
+				void loadSavedHistory();
+			}
 		} catch (saveError) {
 			setError(saveError instanceof Error ? saveError.message : "Unable to save chat response");
 		}
@@ -200,14 +231,19 @@ export function AIChat(_props: AIChatProps) {
 		<div className="ai-chat-shell">
 			<div className="ai-chat-header">
 				<div>
-					<p className="ai-chat-eyebrow">Cloudflare Workers AI</p>
-					<h2>AI-Chat</h2>
-					<p className="ai-chat-subtitle">ChatGPT-style conversation using Cloudflare-hosted models.</p>
+					<div className="ai-chat-tabs" role="tablist" aria-label="AI Chat views">
+				<button type="button" className={activeTab === "chat" ? "ai-chat-tab ai-chat-tab--active" : "ai-chat-tab"} onClick={() => setActiveTab("chat")} role="tab" aria-selected={activeTab === "chat"}>
+					Chat
+				</button>
+				<button type="button" className={activeTab === "history" ? "ai-chat-tab ai-chat-tab--active" : "ai-chat-tab"} onClick={() => setActiveTab("history")} role="tab" aria-selected={activeTab === "history"}>
+					History
+				</button>
+			</div>
 				</div>
 
 				<div className="ai-chat-header-actions">
 					<label className="ai-chat-field">
-						<span>Model</span>
+						{/* <span>Model</span> */}
 						<select value={selectedModel} onChange={(event) => setSelectedModel(event.currentTarget.value)}>
 							{MODEL_OPTIONS.map((model) => (
 								<option key={model.value} value={model.value}>
@@ -225,60 +261,89 @@ export function AIChat(_props: AIChatProps) {
 				</div>
 			</div>
 
-			<div className="ai-chat-statusbar">
-				<span>{messageCountLabel}</span>
-				<span>{loading ? "Thinking..." : "Ready"}</span>
-			</div>
+			
 
-			<div className="ai-chat-panel">
-				<div className="ai-chat-messages" role="log" aria-live="polite" aria-label="Chat messages">
-					{messages.map((message) => (
-						<div key={message.id} className={`ai-chat-message ai-chat-message--${message.role}`}>
-							<div className="ai-chat-avatar">{message.role === "assistant" ? "AI" : message.role === "user" ? "You" : "Sys"}</div>
-							<div className={`ai-chat-bubble${message.status === "error" ? " ai-chat-bubble--error" : ""}`}>
-								<div className="ai-chat-bubble-text">{message.content}</div>
-								{message.role === "assistant" ? (
-									<button
-										type="button"
-										className="ai-chat-save-button"
-										aria-label="Save response"
-										disabled={Boolean(savedMessageIds[message.id])}
-										onClick={() => saveResponseMessageLegacy(message)}
-										title="Save this response"
-									>
-										{savedMessageIds[message.id] ? "✓" : "💾"}
-									</button>
-								) : null}
-							</div>
-						</div>
-					))}
-					{loading ? (
-						<div className="ai-chat-message ai-chat-message--assistant">
-							<div className="ai-chat-avatar">AI</div>
-							<div className="ai-chat-bubble ai-chat-bubble--typing">Thinking...</div>
-						</div>
-					) : null}
-					<div ref={messagesEndRef} />
-				</div>
-
-				<div className="ai-chat-composer">
-					<textarea
-						ref={textareaRef}
-						value={draft}
-						onChange={(event) => setDraft(event.currentTarget.value)}
-						onKeyDown={handleKeyDown}
-						placeholder="Write your message..."
-						rows={4}
-					/>
-					<div className="ai-chat-composer-footer">
-						<p className="ai-chat-hint">Press Enter to send, Shift+Enter for a new line.</p>
-						<button type="button" className="ai-chat-send-button" onClick={handleSend} disabled={loading || !draft.trim()}>
-							{loading ? "Sending..." : "Send"}
-						</button>
+			{activeTab === "chat" ? (
+				<>
+					<div className="ai-chat-statusbar">
+						<span>{messageCountLabel}</span>
+						<span>{loading ? "Thinking..." : "Ready"}</span>
 					</div>
-					{error ? <p className="ai-chat-error">{error}</p> : null}
+
+					<div className="ai-chat-panel">
+						<div className="ai-chat-messages" role="log" aria-live="polite" aria-label="Chat messages">
+							{messages.map((message) => (
+								<div key={message.id} className={`ai-chat-message ai-chat-message--${message.role}`}>
+									<div className="ai-chat-avatar">{message.role === "assistant" ? "AI" : message.role === "user" ? "You" : "Sys"}</div>
+									<div className={`ai-chat-bubble${message.status === "error" ? " ai-chat-bubble--error" : ""}`}>
+										<div className="ai-chat-bubble-text">{message.content}</div>
+										{message.role === "assistant" && message.id !== messages[0]?.id ? (
+											<button
+												type="button"
+												className="ai-chat-save-button"
+												aria-label="Save response"
+												disabled={Boolean(savedMessageIds[message.id])}
+												onClick={() => saveResponseMessageLegacy(message)}
+												title="Save this response"
+											>
+												{savedMessageIds[message.id] ? "✓" : "💾"}
+											</button>
+										) : null}
+									</div>
+								</div>
+							))}
+							{loading ? (
+								<div className="ai-chat-message ai-chat-message--assistant">
+									<div className="ai-chat-avatar">AI</div>
+									<div className="ai-chat-bubble ai-chat-bubble--typing">Thinking...</div>
+								</div>
+							) : null}
+							<div ref={messagesEndRef} />
+						</div>
+
+						<div className="ai-chat-composer">
+							<textarea
+								ref={textareaRef}
+								value={draft}
+								onChange={(event) => setDraft(event.currentTarget.value)}
+								onKeyDown={handleKeyDown}
+								placeholder="Write your message..."
+								rows={4}
+							/>
+							<div className="ai-chat-composer-footer">
+								<p className="ai-chat-hint">Press Enter to send, Shift+Enter for a new line.</p>
+								<button type="button" className="ai-chat-send-button" onClick={handleSend} disabled={loading || !draft.trim()}>
+									{loading ? "Sending..." : "Send"}
+								</button>
+							</div>
+							{error ? <p className="ai-chat-error">{error}</p> : null}
+						</div>
+					</div>
+				</>
+			) : (
+				<div className="ai-chat-history-panel">
+					<div className="ai-chat-history-header">
+						<h3>Saved History</h3>
+						<span>{savedHistory.length} item{savedHistory.length === 1 ? "" : "s"}</span>
+					</div>
+
+					{savedHistory.length === 0 ? (
+						<div className="ai-chat-empty-history">No saved response yet.</div>
+					) : (
+						<div className="ai-chat-history-list">
+							{savedHistory.map((item) => (
+								<div key={item.id} className="ai-chat-history-item">
+									<div className="ai-chat-history-meta">
+										<span className="ai-chat-history-title">{item.title}</span>
+										<small>{new Date(item.created_at).toLocaleString()}</small>
+									</div>
+									<div className="ai-chat-history-content">{item.content}</div>
+								</div>
+							))}
+						</div>
+					)}
 				</div>
-			</div>
+			)}
 
 			{saveDialog.open ? (
 				<div className="ai-chat-save-dialog">
