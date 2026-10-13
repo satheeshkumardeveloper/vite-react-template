@@ -310,6 +310,7 @@ export function Files({ embedded }: FilesProps) {
 	const [thumbModalSrc, setThumbModalSrc] = useState<string | null>(null);
 	const [uploadProgress, setUploadProgress] = useState({ visible: false, percent: 0, label: "Preparing upload..." });
 	const [thumbUrls, setThumbUrls] = useState<Record<string, string>>({});
+	const [loadingFiles, setLoadingFiles] = useState(false);
 
 	const fileInputRef = useRef<HTMLInputElement | null>(null);
 	const folderInputRef = useRef<HTMLInputElement | null>(null);
@@ -368,6 +369,7 @@ export function Files({ embedded }: FilesProps) {
 	}, [files, folderFilter, searchTerm]);
 
 	const loadFilesByFolder = async (folderPath: string) => {
+		setLoadingFiles(true);
 		try {
 			if (SYSTEM_MODE === 0) {
 				// Mock mode: filter sample files by folder
@@ -395,6 +397,8 @@ export function Files({ embedded }: FilesProps) {
 			const message = error instanceof Error ? error.message : String(error);
 			setFiles([]);
 			setStatusMessage(`Failed to load files: ${message}`, "error");
+		} finally {
+			setLoadingFiles(false);
 		}
 	};
 
@@ -822,12 +826,19 @@ export function Files({ embedded }: FilesProps) {
 		const loadThumbnails = async () => {
 			const newThumbUrls: Record<string, string> = { ...thumbUrls };
 			let updated = false;
+			const localThumbUrl = "/static-workers/images.jpg";
 
 			for (const file of filteredFiles) {
 				if (!isImageKey(file.Key)) continue;
 				if (thumbUrls[file.Key]) continue; // Already loaded
 
 				try {
+					if (SYSTEM_MODE === 0) {
+						newThumbUrls[file.Key] = localThumbUrl;
+						updated = true;
+						continue;
+					}
+
 					const signedUrl = await getDownloadUrl(file.Key, false);
 					const thumbUrl = await loadThumbWithCache(settings, file.Key, signedUrl);
 					newThumbUrls[file.Key] = thumbUrl;
@@ -973,7 +984,15 @@ export function Files({ embedded }: FilesProps) {
 						</div>
 						<div className="folder-tree-wrap">{renderTreeNodes(folderTreeData.tree)}</div>
 					</div>
-					<div className="table-wrap" hidden={galleryViewEnabled}>
+					<div className="table-wrap" hidden={galleryViewEnabled} aria-busy={loadingFiles}>
+						{loadingFiles ? (
+							<div className="files-loading-state">
+								<div className="loader-box">
+									<div className="spinner" aria-hidden="true" />
+									<span>Loading files...</span>
+								</div>
+							</div>
+						) : null}
 						<table>
 							<thead>
 								<tr>
@@ -1029,7 +1048,15 @@ export function Files({ embedded }: FilesProps) {
 							</tbody>
 							</table>
 						</div>
-						<div className={`gallery-wrap ${galleryViewEnabled ? "" : "hidden"}`}>
+						<div className={`gallery-wrap ${galleryViewEnabled ? "" : "hidden"}`} aria-busy={loadingFiles}>
+							{loadingFiles ? (
+								<div className="files-loading-state">
+									<div className="loader-box">
+										<div className="spinner" aria-hidden="true" />
+										<span>Loading files...</span>
+									</div>
+								</div>
+							) : null}
 							{filteredFiles.length ? (
 								filteredFiles.map((item) => {
 									const folderPath = getFolderPathFromKey(item.Key || "");
@@ -1045,14 +1072,14 @@ export function Files({ embedded }: FilesProps) {
 													<img
 														src={thumbUrls[item.Key]}
 														alt={item.Key}
-														className="thumb"
+														className="thumb thumb-gallery"
 														onClick={() => setThumbModalSrc(thumbUrls[item.Key] || null)}
 														style={{ cursor: "pointer" }}
 													/>
 												) : isImageKey(item.Key) ? (
-													<div className="thumb-placeholder">🖼️</div>
+													<div className="thumb-placeholder thumb-gallery">🖼️</div>
 												) : (
-													<div className="thumb-placeholder">{getFileIcon(item.Key)}</div>
+													<div className="thumb-placeholder thumb-gallery">{getFileIcon(item.Key)}</div>
 												)}
 											</div>
 											<div className="gallery-key">{item.Key}</div>
