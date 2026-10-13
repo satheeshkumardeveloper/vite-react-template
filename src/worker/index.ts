@@ -53,6 +53,7 @@ app.post("/api/ai-chat", async (c) => {
 				model: selectedModel,
 				messages,
 				stream: false,
+				max_tokens: 100000,
 			}),
 		});
 
@@ -957,6 +958,35 @@ app.get("/api/files/download", async (c) => {
 				"cache-control": "no-store",
 			},
 		});
+	} catch (error) {
+		return c.json({ error: error instanceof Error ? error.message : String(error) }, 500);
+	}
+});
+
+// New endpoint to create saved chat history rows
+app.post("/api/saved-history", async (c) => {
+	try {
+		const db = c.env.DB as D1Database;
+		if (!db) {
+			return c.json({ error: "D1 binding DB is missing in Worker environment." }, 500);
+		}
+
+		const body = await c.req.json();
+		const title = String(body?.title || "Untitled chat").trim();
+		const content = String(body?.content || "").trim();
+
+		if (!content) {
+			return c.json({ error: "content is required" }, 400);
+		}
+
+		const inserted = await db
+			.prepare(
+				"INSERT INTO saved_history (title, content) VALUES (?, ?) RETURNING id, title, content, created_at",
+			)
+			.bind(title || "Untitled chat", content)
+			.first();
+
+		return c.json(inserted, 201);
 	} catch (error) {
 		return c.json({ error: error instanceof Error ? error.message : String(error) }, 500);
 	}

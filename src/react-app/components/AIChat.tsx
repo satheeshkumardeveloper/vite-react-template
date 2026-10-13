@@ -12,6 +12,7 @@ type ChatMessage = {
 	id: string;
 	role: ChatRole;
 	content: string;
+	sourceQuestion?: string;
 	status?: "pending" | "error";
 };
 
@@ -20,11 +21,10 @@ const MODEL_OPTIONS = [
 	{ value: "@cf/meta/llama-3.2-1b-instruct", label: "Llama 3.2 1B Instruct" },
 	{ value: "@cf/meta/llama-3.2-3b-instruct", label: "Llama 3.2 3B Instruct" },
 	{ value: "@cf/google/gemma-7b-it-lora", label: "Gemma 7B IT LoRA" },
-    { value: "@cf/mistralai/mistral-small-3.1-24b-instruct", label: "Mistral Small 3.1 24B Instruct" },
-    { value: "@cf/nvidia/nemotron-3-120b-a12b", label: "Nemotron 3 120B A12B" },
-    { value: "@cf/openai/gpt-oss-120b", label: "GPT OSS 120B" },
-    { value: "@cf/meta/llama-3.2-1b-instruct", label: "Llama 3.2 1B Instruct" },
-    { value: "@cf/cloudflare/clef-flash", label: "Clef Flash" },
+	{ value: "@cf/mistralai/mistral-small-3.1-24b-instruct", label: "Mistral Small 3.1 24B Instruct" },
+	{ value: "@cf/nvidia/nemotron-3-120b-a12b", label: "Nemotron 3 120B A12B" },
+	{ value: "@cf/openai/gpt-oss-120b", label: "GPT OSS 120B" },
+	{ value: "@cf/cloudflare/clef-flash", label: "Clef Flash" },
 ];
 
 function makeId() {
@@ -43,8 +43,62 @@ export function AIChat(_props: AIChatProps) {
 	const [selectedModel, setSelectedModel] = useState(MODEL_OPTIONS[0].value);
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState("");
+	const [savedMessageIds, setSavedMessageIds] = useState<Record<string, boolean>>({});
+	const [saveDialog, setSaveDialog] = useState<{ open: boolean; messageId: string | null; title: string; content: string }>({
+		open: false,
+		messageId: null,
+		title: "",
+		content: "",
+	});
 	const messagesEndRef = useRef<HTMLDivElement | null>(null);
 	const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+	const openSaveDialog = (message: ChatMessage) => {
+		if (!message.content) return;
+		setSaveDialog({
+			open: true,
+			messageId: message.id,
+			title: (message.sourceQuestion || "Untitled chat").trim() || "Untitled chat",
+			content: message.content,
+		});
+	};
+
+	const closeSaveDialog = () => {
+		setSaveDialog({ open: false, messageId: null, title: "", content: "" });
+	};
+
+	const saveResponseMessage = async () => {
+		if (!saveDialog.messageId || !saveDialog.content.trim()) return;
+
+		try {
+			const response = await fetch("/api/saved-history", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					title: saveDialog.title.trim() || "Untitled chat",
+					content: saveDialog.content,
+				}),
+			});
+
+			const payload = (await response.json().catch(() => ({}))) as { error?: string };
+			if (!response.ok) {
+				throw new Error(payload?.error || "Unable to save chat response");
+			}
+
+			setSavedMessageIds((current) => ({ ...current, [saveDialog.messageId as string]: true }));
+			closeSaveDialog();
+			setError("");
+		} catch (saveError) {
+			setError(saveError instanceof Error ? saveError.message : "Unable to save chat response");
+		}
+	};
+
+	const saveResponseMessageLegacy = async (message: ChatMessage) => {
+		if (!message.content || savedMessageIds[message.id]) return;
+		openSaveDialog(message);
+	};
 
 	useEffect(() => {
 		messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -106,7 +160,10 @@ export function AIChat(_props: AIChatProps) {
 			}
 
 			const assistantContent = readResponseText(data) || "No response returned.";
-			setMessages((current) => [...current, { id: makeId(), role: "assistant", content: assistantContent }]);
+			setMessages((current) => [
+				...current,
+				{ id: makeId(), role: "assistant", content: assistantContent, sourceQuestion: text },
+			]);
 		} catch (requestError) {
 			const message = requestError instanceof Error ? requestError.message : "Request failed";
 			setError(message);
@@ -179,7 +236,19 @@ export function AIChat(_props: AIChatProps) {
 						<div key={message.id} className={`ai-chat-message ai-chat-message--${message.role}`}>
 							<div className="ai-chat-avatar">{message.role === "assistant" ? "AI" : message.role === "user" ? "You" : "Sys"}</div>
 							<div className={`ai-chat-bubble${message.status === "error" ? " ai-chat-bubble--error" : ""}`}>
-								{message.content}
+								<div className="ai-chat-bubble-text">{message.content}</div>
+								{message.role === "assistant" ? (
+									<button
+										type="button"
+										className="ai-chat-save-button"
+										aria-label="Save response"
+										disabled={Boolean(savedMessageIds[message.id])}
+										onClick={() => saveResponseMessageLegacy(message)}
+										title="Save this response"
+									>
+										{savedMessageIds[message.id] ? "✓" : "💾"}
+									</button>
+								) : null}
 							</div>
 						</div>
 					))}
@@ -210,6 +279,46 @@ export function AIChat(_props: AIChatProps) {
 					{error ? <p className="ai-chat-error">{error}</p> : null}
 				</div>
 			</div>
+
+			{saveDialog.open ? (
+				<div className="ai-chat-save-dialog">
+					<div className="ai-chat-save-dialog-content">
+						<h3>Save Response</h3>
+						<label>
+							<span>Title</span>
+							<input
+								type="text"
+								value={saveDialog.title}
+								onChange={(e) => setSaveDialog({ ...saveDialog, title: e.target.value })}
+							/>
+						</label>
+						<label>
+							<span>Content</span>
+							<textarea
+								value={saveDialog.content}
+								onChange={(e) => setSaveDialog({ ...saveDialog, content: e.target.value })}
+							/>
+						</label>
+						<div className="ai-chat-save-dialog-actions">
+							<button
+								type="button"
+								className="ai-chat-save-button"
+								onClick={saveResponseMessage}
+							>
+								Save
+							</button>
+							<button
+								type="button"
+								className="ai-chat-cancel-button"
+								onClick={closeSaveDialog}
+							>
+								Cancel
+							</button>
+						</div>
+						{error ? <p className="ai-chat-error">{error}</p> : null}
+					</div>
+				</div>
+			) : null}
 		</div>
 	);
 }
