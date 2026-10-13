@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import "../styles/AIChat.css";
 
 type AIChatProps = {
@@ -54,6 +56,14 @@ const SAMPLE_HISTORY: SavedHistoryItem[] = [
 ];
 
 const HISTORY_PAGE_SIZE = 10;
+
+function MarkdownContent({ content, className }: { content: string; className?: string }) {
+	return (
+		<div className={className}>
+			<ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+		</div>
+	);
+}
 
 export function AIChat(_props: AIChatProps) {
 	const [messages, setMessages] = useState<ChatMessage[]>(
@@ -362,7 +372,9 @@ export function AIChat(_props: AIChatProps) {
 								<div key={message.id} className={`ai-chat-message ai-chat-message--${message.role}`}>
 									<div className="ai-chat-avatar">{message.role === "assistant" ? "AI" : message.role === "user" ? "You" : "Sys"}</div>
 									<div className={`ai-chat-bubble${message.status === "error" ? " ai-chat-bubble--error" : ""}`}>
-										<div className="ai-chat-bubble-text">{message.content}</div>
+										<div className={message.role === "assistant" ? "ai-chat-markdown" : "ai-chat-bubble-text"}>
+											{message.role === "assistant" ? <MarkdownContent content={message.content} /> : message.content}
+										</div>
 										{message.role === "assistant" && message.id !== messages[0]?.id ? (
 											<button
 												type="button"
@@ -440,7 +452,9 @@ export function AIChat(_props: AIChatProps) {
 												<small>{new Date(item.created_at).toLocaleString()}</small>
 											</button>
 											{isExpanded ? (
-												<div className="ai-chat-history-content">{item.content}</div>
+												<div className="ai-chat-history-content">
+													<MarkdownContent content={item.content} className="ai-chat-markdown" />
+												</div>
 											) : null}
 											<div className="ai-chat-history-actions">
 												<button

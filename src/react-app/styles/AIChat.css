@@ -188,6 +188,131 @@
 	padding-right: 28px;
 }
 
+.ai-chat-markdown {
+	padding-right: 28px;
+	white-space: normal;
+	word-break: break-word;
+	line-height: 1.75;
+	color: #eff3ff;
+}
+
+.ai-chat-markdown > :first-child {
+	margin-top: 0;
+}
+
+.ai-chat-markdown > :last-child {
+	margin-bottom: 0;
+}
+
+.ai-chat-markdown p,
+.ai-chat-markdown ul,
+.ai-chat-markdown ol,
+.ai-chat-markdown blockquote,
+.ai-chat-markdown pre,
+.ai-chat-markdown table {
+	margin: 0 0 0.9em;
+}
+
+.ai-chat-markdown h1,
+.ai-chat-markdown h2,
+.ai-chat-markdown h3,
+.ai-chat-markdown h4,
+.ai-chat-markdown h5,
+.ai-chat-markdown h6 {
+	margin: 1em 0 0.5em;
+	line-height: 1.25;
+	color: #ffffff;
+}
+
+.ai-chat-markdown h1 {
+	font-size: 1.55em;
+}
+
+.ai-chat-markdown h2 {
+	font-size: 1.35em;
+}
+
+.ai-chat-markdown h3 {
+	font-size: 1.2em;
+}
+
+.ai-chat-markdown a {
+	color: #8bc4ff;
+	text-decoration: underline;
+	text-underline-offset: 2px;
+}
+
+.ai-chat-markdown code {
+	padding: 0.2em 0.45em;
+	border-radius: 6px;
+	background: rgba(255, 255, 255, 0.08);
+	font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+	font-size: 0.95em;
+}
+
+.ai-chat-markdown pre {
+	overflow: auto;
+	padding: 14px 16px;
+	border-radius: 14px;
+	background: rgba(6, 10, 24, 0.92);
+	border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.ai-chat-markdown pre code {
+	display: block;
+	padding: 0;
+	background: transparent;
+	font-size: 0.92em;
+	white-space: pre;
+}
+
+.ai-chat-markdown table {
+	width: 100%;
+	border-collapse: collapse;
+	overflow: hidden;
+	border-radius: 12px;
+	border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.ai-chat-markdown th,
+.ai-chat-markdown td {
+	padding: 10px 12px;
+	border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+	vertical-align: top;
+	text-align: left;
+}
+
+.ai-chat-markdown th {
+	background: rgba(255, 255, 255, 0.05);
+	font-weight: 700;
+}
+
+.ai-chat-markdown tr:last-child td {
+	border-bottom: none;
+}
+
+.ai-chat-markdown ul,
+.ai-chat-markdown ol {
+	padding-left: 1.4em;
+}
+
+.ai-chat-markdown li + li {
+	margin-top: 0.35em;
+}
+
+.ai-chat-markdown blockquote {
+	padding: 0.75em 1em;
+	border-left: 3px solid rgba(139, 196, 255, 0.65);
+	background: rgba(255, 255, 255, 0.04);
+	border-radius: 0 12px 12px 0;
+}
+
+.ai-chat-markdown hr {
+	border: none;
+	border-top: 1px solid rgba(255, 255, 255, 0.12);
+	margin: 1em 0;
+}
+
 .ai-chat-save-button {
 	position: absolute;
 	right: 8px;
@@ -474,7 +599,7 @@
 
 .ai-chat-history-content {
 	padding: 0 16px 16px;
-	white-space: pre-wrap;
+	white-space: normal;
 	word-break: break-word;
 	line-height: 1.7;
 	color: #e6edff;
