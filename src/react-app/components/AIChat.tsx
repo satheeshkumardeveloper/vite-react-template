@@ -98,8 +98,22 @@ export function AIChat(_props: AIChatProps) {
 		id: null,
 		title: "",
 	});
+	const [pendingModelCenter, setPendingModelCenter] = useState(false);
 	const messagesEndRef = useRef<HTMLDivElement | null>(null);
 	const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+	const modelSelectRef = useRef<HTMLSelectElement | null>(null);
+
+	const centerModelSelector = () => {
+		const target = modelSelectRef.current;
+		if (!target) return;
+
+		const rect = target.getBoundingClientRect();
+		const absoluteTop = window.scrollY + rect.top;
+		const targetTop = Math.max(0, absoluteTop - window.innerHeight / 2 + rect.height / 2);
+
+		window.scrollTo({ top: targetTop, behavior: "smooth" });
+		target.focus({ preventScroll: true });
+	};
 
 	const loadSavedHistory = async () => {
 		try {
@@ -136,6 +150,20 @@ export function AIChat(_props: AIChatProps) {
 		setSaveDialog({ open: false, messageId: null, title: "", content: "" });
 	};
 
+	useEffect(() => {
+		if (!saveDialog.open && pendingModelCenter) {
+			const rafId = window.requestAnimationFrame(() => {
+				centerModelSelector();
+				window.setTimeout(centerModelSelector, 120);
+				setPendingModelCenter(false);
+			});
+
+			return () => window.cancelAnimationFrame(rafId);
+		}
+
+		return undefined;
+	}, [pendingModelCenter, saveDialog.open]);
+
 	const saveResponseMessage = async () => {
 		if (!saveDialog.messageId || !saveDialog.content.trim()) return;
 
@@ -157,8 +185,9 @@ export function AIChat(_props: AIChatProps) {
 			}
 
 			setSavedMessageIds((current) => ({ ...current, [saveDialog.messageId as string]: true }));
-			closeSaveDialog();
 			setError("");
+			setPendingModelCenter(true);
+			closeSaveDialog();
 			if (activeTab === "history") {
 				void loadSavedHistory();
 			}
@@ -192,11 +221,11 @@ export function AIChat(_props: AIChatProps) {
 		return String(candidate.response || candidate.choices?.[0]?.message?.content || candidate.message || candidate.text || "").trim();
 	};
 
-	const handleSend = async () => {
-		const text = draft.trim();
-		if (!text || loading) return;
+	const sendMessage = async (text: string) => {
+		const prompt = text.trim();
+		if (!prompt || loading) return;
 
-		const nextUserMessage: ChatMessage = { id: makeId(), role: "user", content: text };
+		const nextUserMessage: ChatMessage = { id: makeId(), role: "user", content: prompt };
 		const outgoingMessages = [...messages, nextUserMessage].map((message) => ({
 			role: message.role,
 			content: message.content,
@@ -234,7 +263,7 @@ export function AIChat(_props: AIChatProps) {
 			const assistantContent = readResponseText(data) || "No response returned.";
 			setMessages((current) => [
 				...current,
-				{ id: makeId(), role: "assistant", content: assistantContent, sourceQuestion: text },
+				{ id: makeId(), role: "assistant", content: assistantContent, sourceQuestion: prompt },
 			]);
 		} catch (requestError) {
 			const message = requestError instanceof Error ? requestError.message : "Request failed";
@@ -247,6 +276,14 @@ export function AIChat(_props: AIChatProps) {
 			setLoading(false);
 			textareaRef.current?.focus();
 		}
+	};
+
+	const handleSend = async () => {
+		await sendMessage(draft);
+	};
+
+	const handleRetry = async (message: ChatMessage) => {
+		await sendMessage(message.content);
 	};
 
 	const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -340,7 +377,7 @@ export function AIChat(_props: AIChatProps) {
 				<div className="ai-chat-header-actions">
 					<label className="ai-chat-field">
 						{/* <span>Model</span> */}
-						<select value={selectedModel} onChange={(event) => setSelectedModel(event.currentTarget.value)}>
+						<select ref={modelSelectRef} value={selectedModel} onChange={(event) => setSelectedModel(event.currentTarget.value)}>
 							{MODEL_OPTIONS.map((model) => (
 								<option key={model.value} value={model.value}>
 									{model.label}
@@ -350,8 +387,8 @@ export function AIChat(_props: AIChatProps) {
 					</label>
 
 					<div className="ai-chat-buttons">
-						<button type="button" className="ai-chat-secondary-button" onClick={clearChat}>
-							Clear
+						<button type="button" className="ai-chat-secondary-button ai-chat-icon-button" onClick={clearChat} aria-label="Clear chat" title="Clear chat">
+							🧹
 						</button>
 					</div>
 				</div>
@@ -375,6 +412,20 @@ export function AIChat(_props: AIChatProps) {
 										<div className={message.role === "assistant" ? "ai-chat-markdown" : "ai-chat-bubble-text"}>
 											{message.role === "assistant" ? <MarkdownContent content={message.content} /> : message.content}
 										</div>
+										{message.role === "user" ? (
+											<div className="ai-chat-message-actions ai-chat-message-actions--user">
+												<button
+													type="button"
+													className="ai-chat-retry-button ai-chat-retry-button--inline"
+													onClick={() => handleRetry(message)}
+													disabled={loading}
+													title="Retry this question"
+													aria-label="Retry this question"
+												>
+													↻ Retry
+												</button>
+											</div>
+										) : null}
 										{message.role === "assistant" && message.id !== messages[0]?.id ? (
 											<button
 												type="button"
