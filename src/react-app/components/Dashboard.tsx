@@ -108,16 +108,28 @@ export function Dashboard({ activeView, onNavigate }: DashboardProps) {
 
 			<div className="mobile-nav" aria-label="Mobile navigation">
 				<button type="button" className="mobile-nav-button" onClick={() => onNavigate("dashboard")}>
-					Menu
+					Home
 				</button>
-				<button type="button" className="mobile-nav-button mobile-nav-button--accent" onClick={() => onNavigate("image-prompt")}>
-					Image Prompt
+				<button type="button" className={activeView === "image-prompt" ? "mobile-nav-button mobile-nav-button--active" : "mobile-nav-button"} onClick={() => onNavigate("image-prompt")}>
+					G-Prompt
 				</button>
-				<button type="button" className="mobile-nav-button" onClick={() => onNavigate("image-cloud")}>
-					Image Cloud
+				<button type="button" className={activeView === "image-cloud" ? "mobile-nav-button mobile-nav-button--active" : "mobile-nav-button"} onClick={() => onNavigate("image-cloud")}>
+					CloudFlare
 				</button>
-				<button type="button" className="mobile-nav-button" onClick={() => onNavigate("ai-chat")}>
-					AI Chat
+				<button type="button" className={activeView === "ai-chat" ? "mobile-nav-button mobile-nav-button--active" : "mobile-nav-button"} onClick={() => onNavigate("ai-chat")}>
+					AI-Chat
+				</button>
+				<button type="button" className={activeView === "history" ? "mobile-nav-button mobile-nav-button--active" : "mobile-nav-button"} onClick={() => onNavigate("history")}>
+					History
+				</button>
+				<button type="button" className={activeView === "files" ? "mobile-nav-button mobile-nav-button--active" : "mobile-nav-button"} onClick={() => onNavigate("files")}>
+					Files
+				</button>
+				<button type="button" className={activeView === "clipboard" ? "mobile-nav-button mobile-nav-button--active" : "mobile-nav-button"} onClick={() => onNavigate("clipboard")}>
+					Clipboard
+				</button>
+				<button type="button" className={activeView === "instruction" ? "mobile-nav-button mobile-nav-button--active" : "mobile-nav-button"} onClick={() => onNavigate("instruction")}>
+					Instruction Management
 				</button>
 			</div>
 
