@@ -8,7 +8,19 @@ app.post("/api/ai-chat", async (c) => {
 		const body = await c.req.json();
 		const selectedModel = String(body?.model || "gemini-2.5-flash").trim();
 		const allowedModels = [
+			"gemini-3.8-flash",
+			"gemini-3.7-flash",
+			"gemini-3.6-flash",
+			"gemini-3.5-flash",
+			"gemini-3.5-flash-lite",
+			"gemini-3.1-pro-preview",
+			"gemini-3.1-pro-preview-customtools",
+			"gemini-3.1-flash-lite-preview",
+			"gemini-3-pro-preview",
+			"gemini-3-flash-preview",
+			"gemini-2.5-pro",
 			"gemini-2.5-flash",
+			"gemini-2.5-flash-lite",
 			"@cf/zai-org/glm-4.7-flash",
 			"@cf/meta/llama-3.2-1b-instruct",
 			"@cf/meta/llama-3.2-3b-instruct",
@@ -16,7 +28,6 @@ app.post("/api/ai-chat", async (c) => {
 			"@cf/mistralai/mistral-small-3.1-24b-instruct",
 			"@cf/nvidia/nemotron-3-120b-a12b",
 			"@cf/openai/gpt-oss-120b",
-			"@cf/meta/llama-3.2-1b-instruct",
 			"@cf/cloudflare/clef-flash",
 		];
 		const rawMessages = Array.isArray(body?.messages) ? (body.messages as Array<{ role?: unknown; content?: unknown }>) : [];

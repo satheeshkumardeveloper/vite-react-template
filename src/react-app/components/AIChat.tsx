@@ -19,7 +19,19 @@ type ChatMessage = {
 };
 
 const MODEL_OPTIONS = [
+	{ value: "gemini-3.8-flash", label: "Gemini 3.8 Flash" },
+	{ value: "gemini-3.7-flash", label: "Gemini 3.7 Flash" },
+	{ value: "gemini-3.6-flash", label: "Gemini 3.6 Flash" },
+	{ value: "gemini-3.5-flash", label: "Gemini 3.5 Flash" },
+	{ value: "gemini-3.5-flash-lite", label: "Gemini 3.5 Flash Lite" },
+	{ value: "gemini-3.1-pro-preview", label: "Gemini 3.1 Pro Preview" },
+	{ value: "gemini-3.1-pro-preview-customtools", label: "Gemini 3.1 Pro Preview Custom Tools" },
+	{ value: "gemini-3.1-flash-lite-preview", label: "Gemini 3.1 Flash Lite Preview" },
+	{ value: "gemini-3-pro-preview", label: "Gemini 3 Pro Preview" },
+	{ value: "gemini-3-flash-preview", label: "Gemini 3 Flash Preview" },
+	{ value: "gemini-2.5-pro", label: "Gemini 2.5 Pro" },
 	{ value: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
+	{ value: "gemini-2.5-flash-lite", label: "Gemini 2.5 Flash Lite" },
 	{ value: "@cf/zai-org/glm-4.7-flash", label: "GLM 4.7 Flash" },
 	{ value: "@cf/meta/llama-3.2-1b-instruct", label: "Llama 3.2 1B Instruct" },
 	{ value: "@cf/meta/llama-3.2-3b-instruct", label: "Llama 3.2 3B Instruct" },
