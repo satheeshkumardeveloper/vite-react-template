@@ -30,6 +30,36 @@
 	margin-bottom: 10px;
 }
 
+.image-prompt-tabs {
+	display: inline-flex;
+	gap: 8px;
+	padding: 6px;
+	border-radius: 14px;
+	background: rgba(255, 255, 255, 0.04);
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	margin: 8px 0 18px;
+	flex-wrap: wrap;
+}
+
+.image-prompt-tab {
+	border: none;
+	background: transparent;
+	color: #cbd5e1;
+	padding: 10px 14px;
+	border-radius: 10px;
+	font: inherit;
+	font-size: 0.9rem;
+	font-weight: 700;
+	cursor: pointer;
+	transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.image-prompt-tab--active {
+	background: linear-gradient(135deg, rgba(120, 230, 192, 0.2), rgba(78, 199, 162, 0.16));
+	color: #ffffff;
+	box-shadow: inset 0 0 0 1px rgba(120, 230, 192, 0.24);
+}
+
 .page-header h1 {
 	font-size: clamp(2rem, 5vw, 3.8rem);
 	letter-spacing: -0.04em;
@@ -56,6 +86,14 @@
 	display: grid;
 	grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
 	gap: 18px;
+}
+
+.workspace--single {
+	grid-template-columns: 1fr;
+}
+
+.panel--full {
+	grid-column: 1 / -1;
 }
 
 .panel {
@@ -316,6 +354,58 @@ small,
 	background: #4ec7a2;
 }
 
+.image-gen-actions {
+	display: flex;
+	gap: 10px;
+	flex-wrap: wrap;
+	margin-top: 14px;
+	align-items: center;
+}
+
+.image-gen-actions .secondary {
+	background: #252d3a;
+	border: 1px solid #2a3342;
+	color: #f2f5f8;
+}
+
+.generated-image-wrap {
+	margin-top: 16px;
+	padding: 14px;
+	border: 1px solid #2a3342;
+	border-radius: 14px;
+	background: #10151d;
+	min-height: 220px;
+}
+
+.generated-image-wrap[hidden] {
+	display: none;
+}
+
+.generated-image {
+	display: block;
+	width: 100%;
+	max-height: 520px;
+	object-fit: contain;
+	border-radius: 10px;
+	background: #0b0d12;
+}
+
+.tab-help {
+	margin: -6px 0 14px;
+	color: #8f9aaa;
+	font-size: 0.85rem;
+}
+
+.progress-bar--indeterminate {
+	width: 100%;
+	animation: pulseBar 1.2s ease-in-out infinite;
+}
+
+@keyframes pulseBar {
+	0%, 100% { opacity: 0.45; }
+	50% { opacity: 1; }
+}
+
 .loading {
 	display: block;
 	color: #78e6c0;
@@ -445,6 +535,14 @@ small {
 		grid-template-columns: 1fr;
 	}
 
+	.image-prompt-tabs {
+		width: 100%;
+	}
+
+	.image-prompt-tab {
+		flex: 1 1 160px;
+	}
+
 	.image-controls {
 		align-items: flex-start;
 		flex-direction: column;
@@ -456,5 +554,15 @@ small {
 
 	.preview-grid img {
 		height: 120px;
+	}
+
+	.image-gen-actions {
+		width: 100%;
+	}
+
+	.image-gen-actions button,
+	.image-gen-actions a {
+		flex: 1 1 160px;
+		justify-content: center;
 	}
 }

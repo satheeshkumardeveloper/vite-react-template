@@ -25,6 +25,7 @@ type UsageRecord = {
 };
 
 const MODEL = "gemini-3.6-flash";
+const IMAGE_MODEL = "gemini-2.5-flash-image";
 const MAX_DEMAND_RETRIES = 5;
 const DEMAND_RETRY_DELAY_MS = 2000;
 const USAGE_STORAGE_KEY = "geminiPromptUsage";
@@ -128,6 +129,7 @@ async function saveGeneratedPrompt(prompt: string, category: string, images: Fil
 
 export function ImagePrompt({ onBackToDashboard, embedded = false }: { onBackToDashboard?: () => void; embedded?: boolean }) {
 	const [usage, setUsage] = useState<UsageRecord>(() => loadUsage());
+	const [activeTab, setActiveTab] = useState<"prompt" | "text-to-image">("prompt");
 	const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 	const [previewUrls, setPreviewUrls] = useState<string[]>([]);
 	const [imagePreviewsVisible, setImagePreviewsVisible] = useState(false);
@@ -137,6 +139,10 @@ export function ImagePrompt({ onBackToDashboard, embedded = false }: { onBackToD
 	const [geminiKey, setGeminiKey] = useState<GeminiKey>("primary");
 	const [privateMode, setPrivateMode] = useState(() => localStorage.getItem(PRIVATE_MODE_STORAGE_KEY) === "true");
 	const [result, setResult] = useState("");
+	const [textToImagePrompt, setTextToImagePrompt] = useState("");
+	const [generatedImageUrl, setGeneratedImageUrl] = useState("");
+	const [imageGenerating, setImageGenerating] = useState(false);
+	const [imageError, setImageError] = useState("");
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState("");
 	const [progressValue, setProgressValue] = useState(0);
@@ -148,6 +154,7 @@ export function ImagePrompt({ onBackToDashboard, embedded = false }: { onBackToD
 	const progressStartedAtRef = useRef<number>(0);
 	const activeRequestControllerRef = useRef<AbortController | null>(null);
 	const copyResetTimerRef = useRef<number | null>(null);
+	const generatedImageDownloadRef = useRef<HTMLAnchorElement | null>(null);
 
 	const imageCountLabel = useMemo(() => {
 		const count = selectedFiles.length;
@@ -300,6 +307,55 @@ export function ImagePrompt({ onBackToDashboard, embedded = false }: { onBackToD
 		copyResetTimerRef.current = window.setTimeout(() => {
 			setCopyLabel("Copy");
 		}, 1600);
+	};
+
+	const usePromptForImage = () => {
+		const prompt = result.trim();
+		if (!prompt) return;
+		setTextToImagePrompt(prompt);
+		setImageError("");
+		setActiveTab("text-to-image");
+	};
+
+	const handleGenerateImage = async () => {
+		const prompt = textToImagePrompt.trim() || result.trim();
+		if (!prompt) {
+			setImageError("Enter a prompt first.");
+			return;
+		}
+
+		setImageGenerating(true);
+		setImageError("");
+		setGeneratedImageUrl("");
+
+		try {
+			const response = await fetch("/api/image-generate", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					prompt,
+					model: IMAGE_MODEL,
+				}),
+			});
+
+			const data = await readResponseJson(response) as { error?: string; imageDataUrl?: string; imageUrl?: string };
+			if (!response.ok) {
+				throw new Error(data?.error || "Image generation failed");
+			}
+
+			const nextImageUrl = data.imageDataUrl || data.imageUrl || "";
+			if (!nextImageUrl) {
+				throw new Error("No image was returned.");
+			}
+
+			setGeneratedImageUrl(nextImageUrl);
+		} catch (generateError) {
+			setImageError(generateError instanceof Error ? generateError.message : "Image generation failed");
+		} finally {
+			setImageGenerating(false);
+		}
 	};
 
 	const handleGenerate = async () => {
@@ -530,10 +586,7 @@ Do not add explanations before or after the prompt.`,
 		<div className={embedded ? "image-prompt-page embedded" : "image-prompt-page"}>
 			<div className={embedded ? "image-prompt-shell embedded" : "image-prompt-shell"}>
 				<div className="page-header">
-					<div>
-						{/* <h1>Image to AI Prompt</h1> */}
-						{/* <p className="intro">Turn a reference image into a detailed, ready-to-use generation prompt.</p> */}
-					</div>
+					<div />
 					{!embedded ? (
 						<button type="button" className="back-button" onClick={onBackToDashboard}>
 							Back to dashboard
@@ -541,164 +594,173 @@ Do not add explanations before or after the prompt.`,
 					) : null}
 				</div>
 
-		<div className="workspace" onPaste={(e: React.ClipboardEvent) => {
-			const items = Array.from(e.clipboardData?.items || []);
-			const pastedImages = items
-				.filter((item) => (item as DataTransferItem).type.startsWith("image/"))
-				.map((item) => (item as DataTransferItem).getAsFile())
-					.filter((file): file is File => Boolean(file));
-
-				if (!pastedImages.length) {
-					return;
-				}
-
-				e.preventDefault();
-				setSelectedImageFiles([...selectedFiles, ...pastedImages]);
-				setError(`${pastedImages.length} image${pastedImages.length === 1 ? "" : "s"} pasted from clipboard.`);
-			}}>
-					<section className="panel">
-						<h2>Reference image</h2>
-						<label className="dropzone" htmlFor="imageInput">
-							<span>
-								<strong>Choose an image</strong>
-								Click to browse or paste an image from your clipboard
-							</span>
-							<input
-								ref={imageInputRef}
-								type="file"
-								id="imageInput"
-								accept="image/jpeg,image/png,image/webp"
-								multiple
-								onChange={(event) => setSelectedImageFiles(Array.from(event.currentTarget.files || []))}
-							/>
-						</label>
-
-						<div className="image-controls">
-							<span id="imageCount" aria-live="polite">
-								{imageCountLabel}
-							</span>
-							<div className="image-actions">
-								<button type="button" onClick={handlePasteImages} aria-label="Paste image" title="Paste image" style={{ width: "auto", margin: 0, display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "8px 10px" }}>
-									<PasteIcon />
-								</button>
-								<button type="button" onClick={handleClearImages} disabled={!selectedFiles.length} aria-label="Clear images" title="Clear images" style={{ width: "auto", margin: 0, display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "8px 10px" }}>
-									<TrashIcon />
-								</button>
-								<button
-									type="button"
-									onClick={() => setImagePreviewsVisible((current) => !current)}
-									disabled={!selectedFiles.length}
-									aria-label={imagePreviewsVisible ? "Hide images" : "Show images"}
-									title={imagePreviewsVisible ? "Hide images" : "Show images"}
-									style={{ width: "auto", margin: 0, display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "8px 10px" }}
-								>
-									<EyeIcon />
-								</button>
-							</div>
-						</div>
-						<div className="preview-grid" hidden={!selectedFiles.length || !imagePreviewsVisible}>
-							{previewUrls.map((url, index) => (
-								<img key={`${selectedFiles[index]?.name}-${index}`} src={url} alt={`Selected image ${index + 1}`} />
-							))}
-						</div>
-
-						<label className="field-label" htmlFor="category">
-							Category
-						</label>
-						<input
-							id="category"
-							type="text"
-							list="categorySuggestions"
-							value={category}
-							onChange={(event) => setCategory(event.currentTarget.value)}
-							placeholder="Optional category"
-						/>
-						<datalist id="categorySuggestions">
-							{categorySuggestions.map((suggestion) => (
-								<option key={suggestion} value={suggestion} />
-							))}
-						</datalist>
-
-						<label className="field-label" htmlFor="promptFocus">
-							Prompt focus
-						</label>
-						<select id="promptFocus" value={promptFocus} onChange={(event) => setPromptFocus(event.currentTarget.value as PromptFocus)}>
-							{promptFocusOptions.map((option) => (
-								<option key={option.value} value={option.value}>
-									{option.label}
-								</option>
-							))}
-						</select>
-
-						<div className="key-selector">
-							<label htmlFor="geminiKey">Gemini API key</label>
-							<select id="geminiKey" value={geminiKey} onChange={(event) => setGeminiKey(event.currentTarget.value as GeminiKey)}>
-								<option value="primary">Key 1 - Primary</option>
-								<option value="secondary">Key 2 - Backup</option>
-								<option value="tertiary">Key 3 - Backup</option>
-							</select>
-							<span id="keyStatus" aria-live="polite">
-								{geminiKey === "primary" ? "Key 1 is selected for this request." : geminiKey === "secondary" ? "Key 2 is selected for this request." : "Key 3 is selected for this request."}
-							</span>
-						</div>
-
-						<label className="private-mode-control" htmlFor="privateMode">
-							<span>Private mode</span>
-							<input
-								id="privateMode"
-								type="checkbox"
-								role="switch"
-								checked={privateMode}
-								onChange={(event) => setPrivateMode(event.currentTarget.checked)}
-							/>
-						</label>
-
-						<button type="button" onClick={handleGenerate} disabled={loading}>
-							{loading ? "Generating..." : "Generate AI Prompt"}
-						</button>
-
-						{loading ? (
-							<div className="loading" aria-live="polite">
-								Analyzing image...
-								<div className="progress-track" role="progressbar" aria-label="Image analysis progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progressValue}>
-									<div className="progress-bar" style={{ width: `${progressValue}%` }} />
-								</div>
-								<span className="progress-status">{progressMessage} {Math.round(progressValue)}%</span>
-								<button type="button" className="stop-request-btn" onClick={() => activeRequestControllerRef.current?.abort()}>
-									Stop
-								</button>
-							</div>
-						) : null}
-						<div className="error" aria-live="polite">{error}</div>
-					</section>
-
-					<section className="panel">
-						<h2>Generated prompt</h2>
-						<div className="usage-status" aria-live="polite">
-							<div className="usage-card">
-								<span className="usage-label">Requests today</span>
-								<span className="usage-value">{usage.requests}</span>
-							</div>
-							<div className="usage-card">
-								<span className="usage-label">Last request tokens</span>
-								<span className="usage-value">{usage.lastTokens ?? "-"}</span>
-							</div>
-						</div>
-
-						<div className="textarea-wrap">
-							<textarea
-								id="result"
-								value={result}
-								onChange={(event) => setResult(event.currentTarget.value)}
-								placeholder="Your generated prompt will appear here..."
-							/>
-							<button type="button" className="copy-btn" onClick={copyPrompt} disabled={!result.trim()} aria-label="Copy generated prompt" title="Copy generated prompt">
-								<span>{copyLabel}</span>
-							</button>
-						</div>
-						<small>Saved prompts are stored in your Cloudflare database when private mode is off. Token usage comes from the Gemini response.</small>
-					</section>
+				<div className="image-prompt-tabs" role="tablist" aria-label="Image prompt views">
+					<button type="button" className={activeTab === "prompt" ? "image-prompt-tab image-prompt-tab--active" : "image-prompt-tab"} onClick={() => setActiveTab("prompt")} role="tab" aria-selected={activeTab === "prompt"}>
+						Prompt
+					</button>
+					<button type="button" className={activeTab === "text-to-image" ? "image-prompt-tab image-prompt-tab--active" : "image-prompt-tab"} onClick={() => setActiveTab("text-to-image")} role="tab" aria-selected={activeTab === "text-to-image"}>
+						Generate text-to-image
+					</button>
 				</div>
+
+				{activeTab === "prompt" ? (
+					<div className="workspace" onPaste={(e: React.ClipboardEvent) => {
+						const items = Array.from(e.clipboardData?.items || []);
+						const pastedImages = items
+							.filter((item) => (item as DataTransferItem).type.startsWith("image/"))
+							.map((item) => (item as DataTransferItem).getAsFile())
+							.filter((file): file is File => Boolean(file));
+
+						if (!pastedImages.length) return;
+
+						e.preventDefault();
+						setSelectedImageFiles([...selectedFiles, ...pastedImages]);
+						setError(`${pastedImages.length} image${pastedImages.length === 1 ? "" : "s"} pasted from clipboard.`);
+					}}>
+						<section className="panel">
+							<h2>Reference image</h2>
+							<label className="dropzone" htmlFor="imageInput">
+								<span>
+									<strong>Choose an image</strong>
+									Click to browse or paste an image from your clipboard
+								</span>
+								<input
+									ref={imageInputRef}
+									type="file"
+									id="imageInput"
+									accept="image/jpeg,image/png,image/webp"
+									multiple
+									onChange={(event) => setSelectedImageFiles(Array.from(event.currentTarget.files || []))}
+								/>
+							</label>
+
+							<div className="image-controls">
+								<span id="imageCount" aria-live="polite">{imageCountLabel}</span>
+								<div className="image-actions">
+									<button type="button" onClick={handlePasteImages} aria-label="Paste image" title="Paste image" style={{ width: "auto", margin: 0, display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "8px 10px" }}>
+										<PasteIcon />
+									</button>
+									<button type="button" onClick={handleClearImages} disabled={!selectedFiles.length} aria-label="Clear images" title="Clear images" style={{ width: "auto", margin: 0, display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "8px 10px" }}>
+										<TrashIcon />
+									</button>
+									<button type="button" onClick={() => setImagePreviewsVisible((current) => !current)} disabled={!selectedFiles.length} aria-label={imagePreviewsVisible ? "Hide images" : "Show images"} title={imagePreviewsVisible ? "Hide images" : "Show images"} style={{ width: "auto", margin: 0, display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "8px 10px" }}>
+										<EyeIcon />
+									</button>
+								</div>
+							</div>
+							<div className="preview-grid" hidden={!selectedFiles.length || !imagePreviewsVisible}>
+								{previewUrls.map((url, index) => (
+									<img key={`${selectedFiles[index]?.name}-${index}`} src={url} alt={`Selected image ${index + 1}`} />
+								))}
+							</div>
+
+							<label className="field-label" htmlFor="category">Category</label>
+							<input id="category" type="text" list="categorySuggestions" value={category} onChange={(event) => setCategory(event.currentTarget.value)} placeholder="Optional category" />
+							<datalist id="categorySuggestions">
+								{categorySuggestions.map((suggestion) => <option key={suggestion} value={suggestion} />)}
+							</datalist>
+
+							<label className="field-label" htmlFor="promptFocus">Prompt focus</label>
+							<select id="promptFocus" value={promptFocus} onChange={(event) => setPromptFocus(event.currentTarget.value as PromptFocus)}>
+								{promptFocusOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+							</select>
+
+							<div className="key-selector">
+								<label htmlFor="geminiKey">Gemini API key</label>
+								<select id="geminiKey" value={geminiKey} onChange={(event) => setGeminiKey(event.currentTarget.value as GeminiKey)}>
+									<option value="primary">Key 1 - Primary</option>
+									<option value="secondary">Key 2 - Backup</option>
+									<option value="tertiary">Key 3 - Backup</option>
+								</select>
+								<span id="keyStatus" aria-live="polite">{geminiKey === "primary" ? "Key 1 is selected for this request." : geminiKey === "secondary" ? "Key 2 is selected for this request." : "Key 3 is selected for this request."}</span>
+							</div>
+
+							<label className="private-mode-control" htmlFor="privateMode">
+								<span>Private mode</span>
+								<input id="privateMode" type="checkbox" role="switch" checked={privateMode} onChange={(event) => setPrivateMode(event.currentTarget.checked)} />
+							</label>
+
+							<button type="button" onClick={handleGenerate} disabled={loading}>{loading ? "Generating..." : "Generate AI Prompt"}</button>
+
+							{loading ? (
+								<div className="loading" aria-live="polite">
+									Analyzing image...
+									<div className="progress-track" role="progressbar" aria-label="Image analysis progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progressValue}>
+										<div className="progress-bar" style={{ width: `${progressValue}%` }} />
+									</div>
+									<span className="progress-status">{progressMessage} {Math.round(progressValue)}%</span>
+									<button type="button" className="stop-request-btn" onClick={() => activeRequestControllerRef.current?.abort()}>
+										Stop
+									</button>
+								</div>
+							) : null}
+							<div className="error" aria-live="polite">{error}</div>
+						</section>
+
+						<section className="panel">
+							<h2>Generated prompt</h2>
+							<div className="usage-status" aria-live="polite">
+								<div className="usage-card">
+									<span className="usage-label">Requests today</span>
+									<span className="usage-value">{usage.requests}</span>
+								</div>
+								<div className="usage-card">
+									<span className="usage-label">Last request tokens</span>
+									<span className="usage-value">{usage.lastTokens ?? "-"}</span>
+								</div>
+							</div>
+
+							<div className="textarea-wrap">
+								<textarea id="result" value={result} onChange={(event) => setResult(event.currentTarget.value)} placeholder="Your generated prompt will appear here..." />
+								<button type="button" className="copy-btn" onClick={copyPrompt} disabled={!result.trim()} aria-label="Copy generated prompt" title="Copy generated prompt">
+									<span>{copyLabel}</span>
+								</button>
+							</div>
+							<small>Saved prompts are stored in your Cloudflare database when private mode is off. Token usage comes from the Gemini response.</small>
+						</section>
+					</div>
+				) : (
+					<div className="workspace workspace--single">
+						<section className="panel panel--full">
+							<h2>Generate text-to-image</h2>
+							<p className="tab-help">Uses GEMINI_API_KEY_PRIMARY from the server environment.</p>
+
+							<label className="field-label" htmlFor="textToImagePrompt">Prompt</label>
+							<textarea id="textToImagePrompt" value={textToImagePrompt} onChange={(event) => setTextToImagePrompt(event.currentTarget.value)} placeholder={result ? "You can paste or edit the generated prompt here..." : "Write the image prompt here..."} rows={10} />
+
+							<div className="image-gen-actions">
+								<button type="button" className="secondary" onClick={usePromptForImage} disabled={!result.trim()}>
+									Use generated prompt
+								</button>
+								<button type="button" onClick={handleGenerateImage} disabled={imageGenerating}>
+									{imageGenerating ? "Generating image..." : "Generate image"}
+								</button>
+							</div>
+
+							{imageGenerating ? (
+								<div className="loading" aria-live="polite">
+									Generating image...
+									<div className="progress-track" role="progressbar" aria-label="Image generation progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={100}>
+										<div className="progress-bar progress-bar--indeterminate" />
+									</div>
+								</div>
+							) : null}
+
+							{imageError ? <div className="error" aria-live="polite">{imageError}</div> : null}
+
+							<div className="generated-image-wrap" hidden={!generatedImageUrl}>
+								{generatedImageUrl ? <img className="generated-image" src={generatedImageUrl} alt="Generated" /> : null}
+								{generatedImageUrl ? (
+									<div className="image-gen-actions">
+										<a ref={generatedImageDownloadRef} className="copy-btn" href={generatedImageUrl} download="generated-image.png">
+											Download image
+										</a>
+									</div>
+								) : null}
+							</div>
+						</section>
+					</div>
+				)}
 			</div>
 		</div>
 	);

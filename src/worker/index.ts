@@ -207,6 +207,80 @@ app.post("/api/image-prompt-generate", async (c) => {
 	}
 });
 
+app.post("/api/image-generate", async (c) => {
+	try {
+		const body = await c.req.json();
+		const prompt = String(body?.prompt || "").trim();
+		const model = String(body?.model || "gemini-2.5-flash-image").trim();
+
+		if (!prompt) {
+			return c.json({ error: "prompt is required" }, 400);
+		}
+
+		const apiKey = c.env.GEMINI_API_KEY_PRIMARY;
+		if (!apiKey) {
+			return c.json({ error: "Missing GEMINI_API_KEY_PRIMARY in Worker environment." }, 500);
+		}
+
+		const upstream = await fetch(
+			`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${apiKey}`,
+			{
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					contents: [{
+						role: "user",
+						parts: [{ text: prompt }],
+					}],
+					generationConfig: {
+						responseModalities: ["TEXT", "IMAGE"],
+					},
+				}),
+			},
+		);
+
+		const rawText = await upstream.text();
+		let output: any = null;
+
+		try {
+			output = JSON.parse(rawText);
+		} catch {
+			return c.json({ error: "Invalid Gemini image response", raw: rawText }, 502);
+		}
+
+		if (!upstream.ok || output?.error) {
+			return new Response(
+				JSON.stringify({ error: output?.error?.message || "Google Gemini image request failed", upstream: output }),
+				{
+					status: upstream.status || 502,
+					headers: { "content-type": "application/json;charset=UTF-8" },
+				},
+			);
+		}
+
+		const parts = output?.candidates?.[0]?.content?.parts || [];
+		const inlineImagePart = parts.find((part: { inlineData?: { data?: string; mimeType?: string }; inline_data?: { data?: string; mime_type?: string } }) =>
+			Boolean(part?.inlineData?.data || part?.inline_data?.data)
+		);
+		const base64Image = String(inlineImagePart?.inlineData?.data || inlineImagePart?.inline_data?.data || "").trim();
+		const mimeType = String(inlineImagePart?.inlineData?.mimeType || inlineImagePart?.inline_data?.mime_type || "image/png").trim() || "image/png";
+
+		if (!base64Image) {
+			return c.json({ error: "No image was returned by Gemini.", raw: output }, 502);
+		}
+
+		return c.json({
+			imageDataUrl: `data:${mimeType};base64,${base64Image}`,
+			model,
+			raw: output,
+		});
+	} catch (error) {
+		return c.json({ error: error instanceof Error ? error.message : String(error) }, 500);
+	}
+});
+
 // GET image prompts - fetch all saved prompts
 app.get("/api/image-prompts", async (c) => {
 	try {
