@@ -297,7 +297,7 @@ export function Files({ embedded }: FilesProps) {
 	const [urlFiles, setUrlFiles] = useState<File[]>([]);
 	const [showThumbs, setShowThumbs] = useState(false);
 	const [galleryViewEnabled, setGalleryViewEnabled] = useState(false);
-	const [folderFilter, setFolderFilter] = useState("(root)");
+	const [folderFilter, setFolderFilter] = useState("");
 	const [uploadFolderOptions, setUploadFolderOptions] = useState<string[]>([]);
 	const [allFolders, setAllFolders] = useState<string[]>([]);
 	const [uploadFolderMenuOpen, setUploadFolderMenuOpen] = useState(false);
@@ -350,23 +350,36 @@ export function Files({ embedded }: FilesProps) {
 		return root;
 	};
 
+	const folderSearchQuery = searchTerm.trim().toLowerCase();
+
+	const filteredFolderPaths = useMemo(() => {
+		if (!folderSearchQuery) return allFolders;
+		return allFolders.filter((folderPath) => {
+			const normalized = folderPath.toLowerCase();
+			return (
+				normalized.includes(folderSearchQuery) ||
+				folderPath.split("/").some((part) => part.toLowerCase().includes(folderSearchQuery))
+			);
+		});
+	}, [allFolders, folderSearchQuery]);
+
 	const folderTreeData = useMemo(() => {
-		const tree = createFolderTree(allFolders.length > 0 ? allFolders : []);
-		return { tree, folderSet: new Set(allFolders) };
-	}, [allFolders]);
+		const tree = createFolderTree(filteredFolderPaths);
+		return { tree, folderSet: new Set(filteredFolderPaths) };
+	}, [filteredFolderPaths]);
 
 	const filteredFiles = useMemo(() => {
-		const query = searchTerm.trim().toLowerCase();
 		return files.filter((item) => {
 			const folder = getFolderPathFromKey(item.Key || "");
 			const folderMatched =
-				!folderFilter || folderFilter === "(root)"
-					? folder === "(root)"
-					: folder === folderFilter || folder.startsWith(`${folderFilter}/`) || folderFilter === "";
-			const keyMatched = !query || (item.Key || "").toLowerCase().includes(query) || folder.toLowerCase().includes(query);
-			return folderMatched && keyMatched;
+				folderFilter === ""
+					? true
+					: folderFilter === "(root)"
+						? folder === "(root)"
+						: folder === folderFilter || folder.startsWith(`${folderFilter}/`);
+			return folderMatched;
 		});
-	}, [files, folderFilter, searchTerm]);
+	}, [files, folderFilter]);
 
 	const loadFilesByFolder = async (folderPath: string) => {
 		setLoadingFiles(true);
@@ -532,8 +545,10 @@ export function Files({ embedded }: FilesProps) {
 			// Store all folders for tree display
 			setAllFolders(folderList);
 			setUploadFolderOptions(folderList);
-			// After loading folders, load files for (root) folder
-			await loadFilesByFolder("(root)");
+			setFiles([]);
+			setSelectedKeys([]);
+			setStatusMessage("Folders loaded. Select a folder to view files.", "ok");
+			// Do not load root files automatically; user must click a folder to load files.
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
 			setStatusMessage(`Failed to load folders: ${message}`, "error");
@@ -974,13 +989,23 @@ export function Files({ embedded }: FilesProps) {
 						</div>
 					</div>
 					<div className="search-box">
-						<input id="searchKey" ref={searchInputRef} type="text" placeholder="Search files by key name..." value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} />
+						<input id="searchKey" ref={searchInputRef} type="text" placeholder="Search folders..." value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} />
 					</div>
 					<div className="folder-toolbar">
 						<div className="folder-tree-head">
 							<span className="folder-tree-title">Folders</span>
-							<button type="button" className={`folder-chip ${folderFilter === "(root)" ? "active" : ""}`} onClick={() => setFolderFilter("(root)")}>Root</button>
-							<button type="button" className={`folder-chip ${folderFilter === "" ? "active" : ""}`} onClick={() => setFolderFilter("")}>All folders</button>
+							<button type="button" className={`folder-chip ${folderFilter === "(root)" ? "active" : ""}`} onClick={() => {
+								setFolderFilter("(root)");
+								setFiles([]);
+								setSelectedKeys([]);
+								setStatusMessage("Root folder selected. Click a folder to load its files.", "ok");
+							}}>Root</button>
+							<button type="button" className={`folder-chip ${folderFilter === "" ? "active" : ""}`} onClick={() => {
+								setFolderFilter("");
+								setFiles([]);
+								setSelectedKeys([]);
+								setStatusMessage("All folders selected. Click a folder to load its files.", "ok");
+							}}>All folders</button>
 						</div>
 						<div className="folder-tree-wrap">{renderTreeNodes(folderTreeData.tree)}</div>
 					</div>
