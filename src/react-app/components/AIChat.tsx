@@ -39,7 +39,9 @@ const MODEL_OPTIONS = [
 	{ value: "@cf/mistralai/mistral-small-3.1-24b-instruct", label: "Mistral Small 3.1 24B Instruct" },
 	{ value: "@cf/nvidia/nemotron-3-120b-a12b", label: "Nemotron 3 120B A12B" },
 	{ value: "@cf/openai/gpt-oss-120b", label: "GPT OSS 120B" },
+	{ value: "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b", label: "DeepSeek R1 Distill Qwen 32B" },
 	{ value: "@cf/cloudflare/clef-flash", label: "Clef Flash" },
+	{ value: "@cf/qwen/qwen3-30b-a3b-fp8", label: "Qwen 3 30B A3B FP8" }	
 ];
 
 function makeId() {
@@ -420,7 +422,7 @@ export function AIChat(_props: AIChatProps) {
 						<div className="ai-chat-messages" role="log" aria-live="polite" aria-label="Chat messages">
 							{messages.map((message) => (
 								<div key={message.id} className={`ai-chat-message ai-chat-message--${message.role}`}>
-									<div className="ai-chat-avatar">{message.role === "assistant" ? "AI" : message.role === "user" ? "You" : "Sys"}</div>
+									{/* <div className="ai-chat-avatar">{message.role === "assistant" ? "AI" : message.role === "user" ? "You" : "Sys"}</div> */}
 									<div className={`ai-chat-bubble${message.status === "error" ? " ai-chat-bubble--error" : ""}`}>
 										<div className={message.role === "assistant" ? "ai-chat-markdown" : "ai-chat-bubble-text"}>
 											{message.role === "assistant" ? <MarkdownContent content={message.content} /> : message.content}

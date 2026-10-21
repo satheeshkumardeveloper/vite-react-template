@@ -165,8 +165,8 @@
 }
 
 .ai-chat-avatar {
-	width: 38px;
-	height: 38px;
+	width: 28px;
+	height: 20px;
 	border-radius: 12px;
 	display: grid;
 	place-items: center;
@@ -185,7 +185,7 @@
 .ai-chat-bubble {
 	position: relative;
 	max-width: min(780px, calc(100% - 56px));
-	padding: 14px 16px;
+	padding: 3px 16px;
 	border-radius: 18px;
 	background: rgba(255, 255, 255, 0.05);
 	border: 1px solid rgba(255, 255, 255, 0.08);
@@ -196,7 +196,7 @@
 }
 
 .ai-chat-bubble-text {
-	padding-right: 28px;
+	/* padding-right: 28px; */
 }
 
 .ai-chat-message-actions {

@@ -28,7 +28,10 @@ app.post("/api/ai-chat", async (c) => {
 			"@cf/mistralai/mistral-small-3.1-24b-instruct",
 			"@cf/nvidia/nemotron-3-120b-a12b",
 			"@cf/openai/gpt-oss-120b",
+			"xai/grok-4.20-multi-agent-0309",
 			"@cf/cloudflare/clef-flash",
+			"@cf/deepseek-ai/deepseek-r1-distill-qwen-32b",
+			"@cf/qwen/qwen3-30b-a3b-fp8"
 		];
 		const rawMessages = Array.isArray(body?.messages) ? (body.messages as Array<{ role?: unknown; content?: unknown }>) : [];
 
@@ -125,6 +128,12 @@ app.post("/api/ai-chat", async (c) => {
 			return c.json({ error: "Missing Cloudflare AI credentials in Worker environment." }, 500);
 		}
 
+		const maxTokens = selectedModel === "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b"
+			? 20000
+			: selectedModel === "@cf/qwen/qwen3-30b-a3b-fp8"
+				? 16000
+				: 100000;
+
 		const upstream = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/v1/chat/completions`, {
 			method: "POST",
 			headers: {
@@ -135,7 +144,7 @@ app.post("/api/ai-chat", async (c) => {
 				model: selectedModel,
 				messages,
 				stream: false,
-				max_tokens: 100000,
+				max_tokens: maxTokens,
 			}),
 		});
 
