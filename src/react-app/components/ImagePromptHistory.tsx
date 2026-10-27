@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import "../styles/ImagePrompt.css";
 
 type SavedPrompt = {
@@ -512,6 +512,13 @@ export function ImagePromptHistory({ onBackToDashboard, embedded = false }: { on
 	};
 
 	const categories = categorySuggestions;
+	const categoryCounts = useMemo(() => {
+		return savedPrompts.reduce<Record<string, number>>((counts, prompt) => {
+			if (!prompt.category) return counts;
+			counts[prompt.category] = (counts[prompt.category] || 0) + 1;
+			return counts;
+		}, {});
+	}, [savedPrompts]);
 
 	const filteredPrompts = filterCategory ? savedPrompts.filter((p) => p.category === filterCategory) : savedPrompts;
 	const totalPages = Math.max(1, Math.ceil(filteredPrompts.length / recordsPerPage));
@@ -671,10 +678,10 @@ export function ImagePromptHistory({ onBackToDashboard, embedded = false }: { on
 											padding: "8px 10px",
 										}}
 									>
-										<option value="">All categories</option>
+										<option value="">All categories ({savedPrompts.length})</option>
 										{categories.map((cat) => (
 											<option key={cat} value={cat}>
-												{cat}
+												{cat} ({categoryCounts[cat] || 0})
 											</option>
 										))}
 									</select>
