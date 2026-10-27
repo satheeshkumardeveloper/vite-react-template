@@ -312,9 +312,9 @@ app.get("/api/image-prompts", async (c) => {
 		const category = (c.req.query("category") || "").trim();
 		const query = category
 			? db.prepare(
-					"SELECT id, image_path, prompt, category, created_at FROM image_prompts WHERE category = ? ORDER BY created_at DESC, id DESC LIMIT 100",
+					"SELECT id, image_path, prompt, category, created_at FROM image_prompts WHERE category = ? ORDER BY created_at DESC, id DESC",
 			  ).bind(category)
-			: db.prepare("SELECT id, image_path, prompt, category, created_at FROM image_prompts ORDER BY created_at DESC, id DESC LIMIT 100");
+			: db.prepare("SELECT id, image_path, prompt, category, created_at FROM image_prompts ORDER BY created_at DESC, id DESC");
 
 		const { results } = await query.all();
 		return c.json(results || []);
