@@ -249,8 +249,14 @@ export function ImagePromptHistory({ onBackToDashboard, embedded = false }: { on
 	const imageInputRef = useRef<HTMLInputElement>(null);
 
 	const refreshPromptList = async (category = filterCategory) => {
+		if (!category) {
+			setSavedPrompts([]);
+			setCurrentPage(1);
+			return;
+		}
+
 		if (IS_LOCAL) {
-			const prompts = category ? DUMMY_PROMPTS.filter((p) => p.category === category) : DUMMY_PROMPTS;
+			const prompts = DUMMY_PROMPTS.filter((p) => p.category === category);
 			setSavedPrompts(prompts);
 			setCurrentPage(1);
 			return;
@@ -280,21 +286,19 @@ export function ImagePromptHistory({ onBackToDashboard, embedded = false }: { on
 		setViewMode(isMobile ? "grid" : "table");
 
 		if (IS_LOCAL) {
-			// Using dummy data for local testing
-			setSavedPrompts(DUMMY_PROMPTS);
+			setSavedPrompts([]);
 			const dummyCategories = [...new Set(DUMMY_PROMPTS.map((p) => p.category).filter(Boolean))] as string[];
 			setCategorySuggestions(dummyCategories);
 			setLoading(false);
 		} else {
-			// Fetch from API in production
-			Promise.all([loadSavedPrompts(), loadCategorySuggestions()])
-				.then(([prompts, categories]) => {
-					setSavedPrompts(prompts);
+			loadCategorySuggestions()
+				.then((categories) => {
+					setSavedPrompts([]);
 					setCategorySuggestions(categories);
 				})
 				.catch((loadError) => {
-					console.error("Failed to load data:", loadError);
-					setError(loadError instanceof Error ? loadError.message : "Failed to load data");
+					console.error("Failed to load category data:", loadError);
+					setError(loadError instanceof Error ? loadError.message : "Failed to load categories");
 				})
 				.finally(() => setLoading(false));
 		}
@@ -519,6 +523,10 @@ export function ImagePromptHistory({ onBackToDashboard, embedded = false }: { on
 			return counts;
 		}, {});
 	}, [savedPrompts]);
+	const categoryCountEntries = useMemo(
+		() => Object.entries(categoryCounts).sort(([a], [b]) => a.localeCompare(b)),
+		[categoryCounts],
+	);
 
 	const filteredPrompts = filterCategory ? savedPrompts.filter((p) => p.category === filterCategory) : savedPrompts;
 	const totalPages = Math.max(1, Math.ceil(filteredPrompts.length / recordsPerPage));
@@ -678,15 +686,22 @@ export function ImagePromptHistory({ onBackToDashboard, embedded = false }: { on
 											padding: "8px 10px",
 										}}
 									>
-										<option value="">All categories ({savedPrompts.length})</option>
+										<option value="">Select category</option>
 										{categories.map((cat) => (
 											<option key={cat} value={cat}>
-												{cat} ({categoryCounts[cat] || 0})
+												{cat}
 											</option>
 										))}
 									</select>
 								</label>
-								<div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
+
+								{categoryCountEntries.length > 0 && (
+									<div style={{color: "#8f9aaa", fontSize: "0.8rem" }}>
+										Counts: {categoryCountEntries.map(([cat, count]) => `${count}`).join(" · ")}
+									</div>
+								)}
+
+								<div style={{ display: "flex", gap: "41px", alignItems: "center", flexWrap: "wrap" }}>
 									<label style={{ display: "flex", alignItems: "center", gap: "6px", color: "#8f9aaa", fontSize: "0.85rem" }}>
 										Show
 										<select
@@ -704,9 +719,9 @@ export function ImagePromptHistory({ onBackToDashboard, embedded = false }: { on
 												padding: "6px 8px",
 											}}
 										>
-											<option value="15">15</option>
-											<option value="30">30</option>
-											<option value="50">50</option>
+											<option value="16">16</option>
+											<option value="32">32</option>
+											<option value="52">52</option>
 										</select>
 										per page
 									</label>
@@ -856,7 +871,6 @@ export function ImagePromptHistory({ onBackToDashboard, embedded = false }: { on
 							</div>
 
 							{error && <div style={{ color: "#ff8d9b", marginBottom: "16px", fontSize: "0.9rem" }}>{error}</div>}
-
 							{/* Table */}
 							{renderTable()}
 
