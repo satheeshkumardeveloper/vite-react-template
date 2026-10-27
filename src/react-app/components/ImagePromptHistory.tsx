@@ -697,7 +697,7 @@ export function ImagePromptHistory({ onBackToDashboard, embedded = false }: { on
 
 								{categoryCountEntries.length > 0 && (
 									<div style={{color: "#8f9aaa", fontSize: "0.8rem" }}>
-										Counts: {categoryCountEntries.map(([cat, count]) => `${count}`).join(" · ")}
+										Counts: {categoryCountEntries.map(([, count]) => `${count}`).join(" · ")}
 									</div>
 								)}
 
@@ -1620,6 +1620,8 @@ export function ImagePromptHistory({ onBackToDashboard, embedded = false }: { on
 									<option key={suggestion} value={suggestion} />
 								))}
 							</datalist>
+
+
 
 							<div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
 								<button
