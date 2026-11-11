@@ -1,0 +1,23 @@
+[
+  {
+    "id": 1,
+    "title": "Portrait Pose",
+    "content": "Elegant standing pose, slight head tilt, soft smile, studio key light.",
+    "updated_at": "2026-08-27T10:30:00Z",
+    "order": 3
+  },
+  {
+    "id": 2,
+    "title": "Action Pose",
+    "content": "Dynamic running pose, low camera angle, motion blur in background.",
+    "updated_at": "2026-08-27T09:15:00Z",
+    "order": 2
+  },
+  {
+    "id": 3,
+    "title": "Product Pose",
+    "content": "Hands presenting product at chest height, neutral backdrop, crisp shadows.",
+    "updated_at": "2026-08-27T08:45:00Z",
+    "order": 1
+  }
+]

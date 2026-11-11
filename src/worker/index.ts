@@ -676,6 +676,126 @@ app.delete("/api/prompt-instruction/:id", async (c) => {
 	}
 });
 
+// Pose Prompt CRUD API Endpoints
+
+// GET all pose prompt entries
+app.get("/api/pose-prompt", async (c) => {
+	try {
+		const db = c.env.DB as D1Database;
+		if (!db) {
+			return c.json({ error: "D1 binding DB is missing in Worker environment." }, 500);
+		}
+
+		const { results } = await db
+			.prepare(
+				'SELECT id, title, content, updated_at, "order" FROM pose_prompt ORDER BY "order" DESC, id DESC',
+			)
+			.all();
+
+		return c.json(results || []);
+	} catch (error) {
+		return c.json({ error: error instanceof Error ? error.message : String(error) }, 500);
+	}
+});
+
+// POST create new pose prompt entry
+app.post("/api/pose-prompt", async (c) => {
+	try {
+		const db = c.env.DB as D1Database;
+		if (!db) {
+			return c.json({ error: "D1 binding DB is missing in Worker environment." }, 500);
+		}
+
+		const body = await c.req.json();
+		const title = body?.title || null;
+		const content = body?.content || null;
+
+		const maxOrderResult = await db
+			.prepare('SELECT MAX(COALESCE("order", 0)) as max_order FROM pose_prompt')
+			.first();
+		const maxOrder = (maxOrderResult as Record<string, number>)?.max_order ?? 0;
+		const newOrder = maxOrder + 1;
+
+		const created = await db
+			.prepare(
+				'INSERT INTO pose_prompt (title, content, updated_at, "order") VALUES (?, ?, CURRENT_TIMESTAMP, ?) RETURNING id, title, content, updated_at, "order"',
+			)
+			.bind(title, content, newOrder)
+			.first();
+
+		return c.json(created, 201);
+	} catch (error) {
+		return c.json({ error: error instanceof Error ? error.message : String(error) }, 500);
+	}
+});
+
+// PUT update pose prompt entry
+app.put("/api/pose-prompt/:id", async (c) => {
+	try {
+		const db = c.env.DB as D1Database;
+		if (!db) {
+			return c.json({ error: "D1 binding DB is missing in Worker environment." }, 500);
+		}
+
+		const id = Number(c.req.param("id"));
+		const body = await c.req.json();
+		const title = body?.title || null;
+		const content = body?.content || null;
+		const order = body?.order !== undefined ? Number(body.order) : null;
+
+		const existing = await db.prepare("SELECT id FROM pose_prompt WHERE id = ?").bind(id).first();
+
+		if (!existing) {
+			return c.json({ error: "Pose prompt entry not found" }, 404);
+		}
+
+		let updated;
+		if (order !== null) {
+			updated = await db
+				.prepare(
+					'UPDATE pose_prompt SET title = ?, content = ?, updated_at = CURRENT_TIMESTAMP, "order" = ? WHERE id = ? RETURNING id, title, content, updated_at, "order"',
+				)
+				.bind(title, content, order, id)
+				.first();
+		} else {
+			updated = await db
+				.prepare(
+					'UPDATE pose_prompt SET title = ?, content = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? RETURNING id, title, content, updated_at, "order"',
+				)
+				.bind(title, content, id)
+				.first();
+		}
+
+		return c.json(updated);
+	} catch (error) {
+		return c.json({ error: error instanceof Error ? error.message : String(error) }, 500);
+	}
+});
+
+// DELETE pose prompt entry
+app.delete("/api/pose-prompt/:id", async (c) => {
+	try {
+		const db = c.env.DB as D1Database;
+		if (!db) {
+			return c.json({ error: "D1 binding DB is missing in Worker environment." }, 500);
+		}
+
+		const id = Number(c.req.param("id"));
+
+		const existing = await db.prepare("SELECT id FROM pose_prompt WHERE id = ?").bind(id).first();
+
+		if (!existing) {
+			return c.json({ error: "Pose prompt entry not found" }, 404);
+		}
+
+		await db.prepare("DELETE FROM pose_prompt WHERE id = ?").bind(id).run();
+
+		return c.json({ success: true, id });
+	} catch (error) {
+		return c.json({ error: error instanceof Error ? error.message : String(error) }, 500);
+	}
+});
+
 // Clipboard CRUD API Endpoints
 
 // GET all clipboard entries

@@ -4,13 +4,14 @@ import { ImagePrompt } from "./ImagePrompt";
 import { ImagePromptHistory } from "./ImagePromptHistory";
 import { InstructionManagement } from "./InstructionManagement";
 import { Clipboard } from "./Clipboard";
+import { PosePrompt } from "./PosePrompt";
 import { Files } from "./Files";
 import { AIChat } from "./AIChat";
 import "../styles/Dashboard.css";
 
 type DashboardProps = {
-	activeView: "dashboard" | "image-prompt" | "image-cloud" | "history" | "instruction" | "clipboard" | "files" | "ai-chat";
-	onNavigate: (view: "dashboard" | "image-prompt" | "image-cloud" | "history" | "instruction" | "clipboard" | "files" | "ai-chat") => void;
+	activeView: "dashboard" | "image-prompt" | "image-cloud" | "history" | "instruction" | "clipboard" | "pose-prompt" | "files" | "ai-chat";
+	onNavigate: (view: "dashboard" | "image-prompt" | "image-cloud" | "history" | "instruction" | "clipboard" | "pose-prompt" | "files" | "ai-chat") => void;
 };
 
 export function Dashboard({ activeView, onNavigate }: DashboardProps) {
@@ -81,6 +82,13 @@ export function Dashboard({ activeView, onNavigate }: DashboardProps) {
 					>
 						<span>Clipboard</span>
 					</button>
+					<button
+						type="button"
+						className={activeView === "pose-prompt" ? "nav-item nav-item--active" : "nav-item"}
+						onClick={() => onNavigate("pose-prompt")}
+					>
+						<span>Pose-Prompt</span>
+					</button>
 					<div className="nav-item nav-item--dropdown">
 						<button type="button" className="nav-trigger">
 							<span>Master</span>
@@ -128,6 +136,9 @@ export function Dashboard({ activeView, onNavigate }: DashboardProps) {
 				<button type="button" className={activeView === "clipboard" ? "mobile-nav-button mobile-nav-button--active" : "mobile-nav-button"} onClick={() => onNavigate("clipboard")}>
 					Clipboard
 				</button>
+				<button type="button" className={activeView === "pose-prompt" ? "mobile-nav-button mobile-nav-button--active" : "mobile-nav-button"} onClick={() => onNavigate("pose-prompt")}>
+					Pose-Prompt
+				</button>
 				<button type="button" className={activeView === "instruction" ? "mobile-nav-button mobile-nav-button--active" : "mobile-nav-button"} onClick={() => onNavigate("instruction")}>
 					Instruction Management
 				</button>
@@ -172,6 +183,10 @@ export function Dashboard({ activeView, onNavigate }: DashboardProps) {
 			) : activeView === "clipboard" ? (
 				<div className="dashboard-card dashboard-card--full">
 				<Clipboard embedded />
+				</div>
+			) : activeView === "pose-prompt" ? (
+				<div className="dashboard-card dashboard-card--full">
+					<PosePrompt embedded />
 				</div>
 			) : activeView === "files" ? (
 				<div className="dashboard-card dashboard-card--full">
