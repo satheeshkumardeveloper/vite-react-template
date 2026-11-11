@@ -53,6 +53,8 @@ export function PosePrompt({ embedded }: PosePromptProps) {
 	const [updatedAt, setUpdatedAt] = useState("Not saved");
 	const [formTitle, setFormTitle] = useState("New Entry");
 	const [draggedItem, setDraggedItem] = useState<number | null>(null);
+	const [showEditorFields, setShowEditorFields] = useState(true);
+	const [copiedSentenceMemory, setCopiedSentenceMemory] = useState<Record<string, number[]>>({});
 
 	useEffect(() => {
 		fetchList();
@@ -259,6 +261,80 @@ export function PosePrompt({ embedded }: PosePromptProps) {
 		}
 	};
 
+	const copySentence = async (sentence: string, index: number) => {
+		try {
+			await navigator.clipboard.writeText(sentence);
+			const memoryKey = selectedId !== null
+				? `id:${selectedId}`
+				: `title:${title.trim().toLowerCase() || "draft"}`;
+			setCopiedSentenceMemory((prev) => {
+				const current = prev[memoryKey] || [];
+				if (current.includes(index)) {
+					return prev;
+				}
+				return {
+					...prev,
+					[memoryKey]: [...current, index],
+				};
+			});
+			setStatusMessage("Sentence copied.", "ok");
+		} catch {
+			setStatusMessage("Clipboard access is blocked by the browser.", "error");
+		}
+	};
+
+	const undoSentenceStrike = (index: number) => {
+		const memoryKey = selectedId !== null
+			? `id:${selectedId}`
+			: `title:${title.trim().toLowerCase() || "draft"}`;
+		setCopiedSentenceMemory((prev) => {
+			const current = prev[memoryKey] || [];
+			if (!current.includes(index)) {
+				return prev;
+			}
+			const nextIndexes = current.filter((item) => item !== index);
+			return {
+				...prev,
+				[memoryKey]: nextIndexes,
+			};
+		});
+		setStatusMessage("Sentence unmarked.", "ok");
+	};
+
+	const parseCompletedSentences = (value: string) => {
+		const normalized = value.replace(/\r\n/g, "\n").trim();
+		if (!normalized) return [] as string[];
+
+		const indexedPattern = /(?:^|\n)\s*\d+\.\s*[\s\S]*?(?=(?:\n\s*\d+\.\s)|$)/g;
+		const indexedMatches = normalized.match(indexedPattern);
+		if (indexedMatches && indexedMatches.length > 0) {
+			return indexedMatches
+				.map((block) => block.replace(/^\s*\d+\.\s*/, "").trim())
+				.filter(Boolean);
+		}
+
+		const lineBlocks = normalized
+			.split(/\n+/)
+			.map((line) => line.trim())
+			.filter(Boolean);
+
+		const sentenceBlocks = lineBlocks.flatMap((line) => {
+			const matches = line.match(/[^.!?]+[.!?]+(?:["')\]]+)?/g);
+			if (matches && matches.length > 0) {
+				return matches.map((sentence) => sentence.trim()).filter(Boolean);
+			}
+			return [line];
+		});
+
+		return sentenceBlocks;
+	};
+
+	const completedSentences = parseCompletedSentences(content);
+	const activeMemoryKey = selectedId !== null
+		? `id:${selectedId}`
+		: `title:${title.trim().toLowerCase() || "draft"}`;
+	const copiedSentenceIndexes = new Set(copiedSentenceMemory[activeMemoryKey] || []);
+
 	const handleDragStart = (id: number) => {
 		setDraggedItem(id);
 	};
@@ -327,7 +403,7 @@ export function PosePrompt({ embedded }: PosePromptProps) {
 				<header className="page-head">
 					<div>
 						<h1 className="page-title">Pose Prompt Workspace</h1>
-						{/* <p className="page-sub">Editing workspace with add, update, delete and copy actions.</p> */}
+						<p className="page-sub">Editing workspace with add, update, delete and copy actions.</p>
 						<small style={{ marginTop: "8px", display: "block", color: "#8f9aaa" }}>
 							Mode: <strong>{isLocalMode ? "Local JSON File" : "Production API"}</strong>
 						</small>
@@ -370,30 +446,73 @@ export function PosePrompt({ embedded }: PosePromptProps) {
 					<section className="panel right">
 						<div className="form-header">
 							<strong className="form-title">{formTitle}</strong>
-							<span className="chip">{updatedAt}</span>
+							<div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+								<button
+									type="button"
+									className="btn secondary"
+									onClick={() => setShowEditorFields((prev) => !prev)}
+								>
+									{showEditorFields ? "Hide Fields" : "Show Fields"}
+								</button>
+								<span className="chip">{updatedAt}</span>
+							</div>
 						</div>
 
 						<div className="form">
-							<div className="form-group">
-								<label htmlFor="pose-prompt-title">Title</label>
-								<input
-									id="pose-prompt-title"
-									type="text"
-									placeholder="Optional title"
-									value={title}
-									onChange={(e) => setTitle(e.target.value)}
-								/>
-							</div>
+							{showEditorFields ? (
+								<>
+									<div className="form-group">
+										<label htmlFor="pose-prompt-title">Title</label>
+										<input
+											id="pose-prompt-title"
+											type="text"
+											placeholder="Optional title"
+											value={title}
+											onChange={(e) => setTitle(e.target.value)}
+										/>
+									</div>
 
-							<div className="form-group">
-								<label htmlFor="pose-prompt-content">Content</label>
-								<textarea
-									id="pose-prompt-content"
-									placeholder="Paste or write content here..."
-									value={content}
-									onChange={(e) => setContent(e.target.value)}
-								/>
-							</div>
+									<div className="form-group">
+										<label htmlFor="pose-prompt-content">Content</label>
+										<textarea
+											id="pose-prompt-content"
+											placeholder="Paste or write content here..."
+											value={content}
+											onChange={(e) => setContent(e.target.value)}
+										/>
+									</div>
+								</>
+							) : null}
+
+							{completedSentences.length > 0 ? (
+								<div className="sentence-list" aria-label="Completed sentences">
+									{completedSentences.map((sentence, index) => (
+										<div key={`${sentence}-${index}`} className={`sentence-item ${copiedSentenceIndexes.has(index) ? "copied" : ""}`}>
+											<div className="sentence-row">
+												<div className="sentence-text">{`${index + 1}. ${sentence}`}</div>
+												{copiedSentenceIndexes.has(index) ? (
+													<button
+														type="button"
+														className="btn secondary sentence-copy-btn"
+														onClick={() => undoSentenceStrike(index)}
+													>
+														Undo
+													</button>
+												) : (
+													<button
+														type="button"
+														className="btn secondary sentence-copy-btn"
+														onClick={() => copySentence(sentence, index)}
+													>
+														Copy
+													</button>
+												)}
+											</div>
+											<hr className="sentence-divider" />
+										</div>
+									))}
+								</div>
+							) : null}
 
 							<div className="actions">
 								<button type="button" className="btn primary" onClick={addEntry}>
