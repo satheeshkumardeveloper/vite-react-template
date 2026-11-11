@@ -243,7 +243,7 @@ export function ImagePromptHistory({ onBackToDashboard, embedded = false }: { on
 	const [deleteConfirmLoading, setDeleteConfirmLoading] = useState(false);
 	const [viewPrompt, setViewPrompt] = useState<SavedPrompt | null>(null);
 	const [viewMultiplePrompts, setViewMultiplePrompts] = useState(false);
-	const [recordsPerPage, setRecordsPerPage] = useState(15);
+	const [recordsPerPage, setRecordsPerPage] = useState(16);
 	const [showSelectionScopeDialog, setShowSelectionScopeDialog] = useState(false);
 	const [isRefreshing, setIsRefreshing] = useState(false);
 	const imageInputRef = useRef<HTMLInputElement>(null);
@@ -529,10 +529,18 @@ export function ImagePromptHistory({ onBackToDashboard, embedded = false }: { on
 	);
 
 	const filteredPrompts = filterCategory ? savedPrompts.filter((p) => p.category === filterCategory) : savedPrompts;
-	const totalPages = Math.max(1, Math.ceil(filteredPrompts.length / recordsPerPage));
-	const validPage = Math.min(currentPage, totalPages);
-	const firstIdx = (validPage - 1) * recordsPerPage;
-	const pagedPrompts = filteredPrompts.slice(firstIdx, firstIdx + recordsPerPage);
+	const pageSize = Math.max(1, Number.isFinite(recordsPerPage) ? recordsPerPage : 16);
+	const totalPages = Math.max(1, Math.ceil(filteredPrompts.length / pageSize));
+	const safeCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+	const validPage = safeCurrentPage;
+	const firstIdx = (validPage - 1) * pageSize;
+	const pagedPrompts = filteredPrompts.slice(firstIdx, firstIdx + pageSize);
+
+	useEffect(() => {
+		if (currentPage !== validPage) {
+			setCurrentPage(validPage);
+		}
+	}, [currentPage, validPage]);
 
 	const imagePathsForRecord = (imagePath: string) => {
 		try {
@@ -880,7 +888,7 @@ export function ImagePromptHistory({ onBackToDashboard, embedded = false }: { on
 									<button
 										type="button"
 										disabled={validPage === 1}
-										onClick={() => setCurrentPage(Math.max(1, validPage - 1))}
+										onClick={() => setCurrentPage(Math.max(1, safeCurrentPage - 1))}
 										title="Previous page"
 										aria-label="Previous page"
 										style={{
@@ -1620,6 +1628,7 @@ export function ImagePromptHistory({ onBackToDashboard, embedded = false }: { on
 									<option key={suggestion} value={suggestion} />
 								))}
 							</datalist>
+
 
 
 
