@@ -296,11 +296,11 @@ textarea {
 }
 
 textarea {
-	min-height: 200px;
-	resize: vertical;
+	min-height: 120px;
+	resize: none;
 	line-height: 1.45;
 	flex: 1;
-	overflow-y: auto;
+	overflow-y: hidden;
 }
 
 .sentence-list {
@@ -308,7 +308,7 @@ textarea {
 	border: 1px solid var(--clipboard-line);
 	border-radius: 10px;
 	background: #0b1428;
-	max-height: 180px;
+	/* max-height: 180px; */
 	overflow-y: auto;
 	padding: 8px 10px;
 }

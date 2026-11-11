@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import "../styles/Clipboard.css";
 
 type PosePromptEntry = {
@@ -55,10 +55,22 @@ export function PosePrompt({ embedded }: PosePromptProps) {
 	const [draggedItem, setDraggedItem] = useState<number | null>(null);
 	const [showEditorFields, setShowEditorFields] = useState(true);
 	const [copiedSentenceMemory, setCopiedSentenceMemory] = useState<Record<string, number[]>>({});
+	const contentTextareaRef = useRef<HTMLTextAreaElement | null>(null);
 
 	useEffect(() => {
 		fetchList();
 	}, []);
+
+	const autoResizeContentTextarea = () => {
+		const textarea = contentTextareaRef.current;
+		if (!textarea) return;
+		textarea.style.height = "auto";
+		textarea.style.height = `${textarea.scrollHeight}px`;
+	};
+
+	useEffect(() => {
+		autoResizeContentTextarea();
+	}, [content, showEditorFields]);
 
 	const formatDate = (value: string | null | undefined) => {
 		if (!value) return "Not saved";
@@ -459,6 +471,21 @@ export function PosePrompt({ embedded }: PosePromptProps) {
 						</div>
 
 						<div className="form">
+							<div className="actions">
+								<button type="button" className="btn primary" onClick={addEntry}>
+									Add
+								</button>
+								<button type="button" className="btn secondary" onClick={updateEntry}>
+									Update
+								</button>
+								<button type="button" className="btn danger" onClick={deleteEntry}>
+									Delete
+								</button>
+								<button type="button" className="btn secondary" onClick={copyContent}>
+									Copy
+								</button>
+							</div>
+
 							{showEditorFields ? (
 								<>
 									<div className="form-group">
@@ -476,9 +503,11 @@ export function PosePrompt({ embedded }: PosePromptProps) {
 										<label htmlFor="pose-prompt-content">Content</label>
 										<textarea
 											id="pose-prompt-content"
+											ref={contentTextareaRef}
 											placeholder="Paste or write content here..."
 											value={content}
 											onChange={(e) => setContent(e.target.value)}
+											onInput={autoResizeContentTextarea}
 										/>
 									</div>
 								</>
@@ -513,21 +542,6 @@ export function PosePrompt({ embedded }: PosePromptProps) {
 									))}
 								</div>
 							) : null}
-
-							<div className="actions">
-								<button type="button" className="btn primary" onClick={addEntry}>
-									Add
-								</button>
-								<button type="button" className="btn secondary" onClick={updateEntry}>
-									Update
-								</button>
-								<button type="button" className="btn danger" onClick={deleteEntry}>
-									Delete
-								</button>
-								<button type="button" className="btn secondary" onClick={copyContent}>
-									Copy
-								</button>
-							</div>
 
 							<div className={`status ${statusKind}`}>{status}</div>
 						</div>
