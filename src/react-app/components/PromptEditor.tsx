@@ -84,6 +84,8 @@ export function PromptEditor({ embedded }: PromptEditorProps) {
 	const [selectedPoseIndexes, setSelectedPoseIndexes] = useState<Set<number>>(new Set());
 	const [lastHistoryCheckedIndex, setLastHistoryCheckedIndex] = useState<number | null>(null);
 	const [lastPoseCheckedIndex, setLastPoseCheckedIndex] = useState<number | null>(null);
+	const [copiedMergedIndex, setCopiedMergedIndex] = useState<number | null>(null);
+	const [undoClipboardText, setUndoClipboardText] = useState<string | null>(null);
 
 	const summaryRowCount = Math.max(historyPromptList.length, posePromptList.length);
 	const summaryRows = Array.from({ length: summaryRowCount }, (_, index) => {
@@ -408,6 +410,57 @@ export function PromptEditor({ embedded }: PromptEditorProps) {
 		}
 	};
 
+	const handleCopyMergedItem = async (value: string, index: number) => {
+		if (!value.trim()) {
+			setStatus("No merged content to copy.");
+			return;
+		}
+
+		let previousClipboard: string | null = null;
+
+		try {
+			if (navigator.clipboard?.readText) {
+				try {
+					previousClipboard = await navigator.clipboard.readText();
+				} catch {
+					previousClipboard = null;
+				}
+			}
+
+			await navigator.clipboard.writeText(value);
+			setUndoClipboardText(previousClipboard);
+			setCopiedMergedIndex(index);
+			setStatus("Merged row copied.");
+		} catch {
+			setStatus("Clipboard access is blocked by the browser.");
+		}
+	};
+
+	const handleUndoCopy = async () => {
+		if (copiedMergedIndex === null) {
+			setStatus("Nothing to undo.");
+			return;
+		}
+
+		if (undoClipboardText !== null) {
+			try {
+				await navigator.clipboard.writeText(undoClipboardText);
+			} catch {
+				setStatus("Undo failed because clipboard access is blocked.");
+				return;
+			}
+		}
+
+		setCopiedMergedIndex(null);
+		setUndoClipboardText(null);
+		setStatus("Copy undone.");
+	};
+
+	useEffect(() => {
+		setCopiedMergedIndex(null);
+		setUndoClipboardText(null);
+	}, [mergedPrompts]);
+
 	return (
 		<div className={embedded ? "prompt-editor prompt-editor--embedded" : "prompt-editor"}>
 			<div className="prompt-editor-selection-table-wrap" aria-label="Prompt rows">
@@ -585,8 +638,31 @@ export function PromptEditor({ embedded }: PromptEditorProps) {
 					<div className="prompt-editor-empty">Prompt1 + Prompt2 + additional text</div>
 				) : (
 					mergedPrompts.map((result, index) => (
-						<div key={`${result}-${index}`} className="prompt-editor-result-item">
-							{result}
+						<div
+							key={`${result}-${index}`}
+							className={copiedMergedIndex === index ? "prompt-editor-result-item prompt-editor-result-item--copied" : "prompt-editor-result-item"}
+						>
+							<span className="prompt-editor-result-text" title={result}>{result}</span>
+							<div className="prompt-editor-result-actions">
+								<button
+									type="button"
+									className="prompt-editor-icon-button"
+									onClick={() => handleCopyMergedItem(result, index)}
+									aria-label={`Copy merged row ${index + 1}`}
+									title="Copy"
+								>
+									⎘
+								</button>
+								{copiedMergedIndex === index ? (
+									<button
+										type="button"
+										className="prompt-editor-undo-button"
+										onClick={handleUndoCopy}
+									>
+										Undo
+									</button>
+								) : null}
+							</div>
 						</div>
 					))
 				)}
