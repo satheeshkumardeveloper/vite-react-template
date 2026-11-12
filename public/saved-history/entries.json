@@ -1,0 +1,227 @@
+[
+  {
+    "id": 1,
+    "title": "portrait",
+    "content": "A professional portrait of a woman wearing a red business suit, sitting in an office chair with a confident smile, natural lighting from a window, sharp focus on face, modern office background, professional photography style",
+    "prompt": "A professional portrait of a woman wearing a red business suit, sitting in an office chair with a confident smile, natural lighting from a window, sharp focus on face, modern office background, professional photography style",
+    "category": "portrait",
+    "image_path": "[]",
+    "created_at": "2026-11-05T10:00:00Z"
+  },
+  {
+    "id": 2,
+    "title": "fashion",
+    "content": "Fashion photography of a man in casual streetwear, standing on a city street at sunset, golden hour lighting, relaxed pose, urban background with blurred buildings, trendy style, cinematic quality",
+    "prompt": "Fashion photography of a man in casual streetwear, standing on a city street at sunset, golden hour lighting, relaxed pose, urban background with blurred buildings, trendy style, cinematic quality",
+    "category": "fashion",
+    "image_path": "[]",
+    "created_at": "2026-11-06T10:00:00Z"
+  },
+  {
+    "id": 3,
+    "title": "product",
+    "content": "Product photography of a luxury watch on a marble surface, studio lighting, soft shadows, product-centric composition, high-end jewelry photography style, sharp detail, isolated on neutral background",
+    "prompt": "Product photography of a luxury watch on a marble surface, studio lighting, soft shadows, product-centric composition, high-end jewelry photography style, sharp detail, isolated on neutral background",
+    "category": "product",
+    "image_path": "[]",
+    "created_at": "2026-11-07T10:00:00Z"
+  },
+  {
+    "id": 4,
+    "title": "landscape",
+    "content": "Landscape photography of a mountain range at sunrise, golden light casting long shadows, misty valleys, wide-angle perspective, majestic scenery, dramatic sky with clouds, nature photography",
+    "prompt": "Landscape photography of a mountain range at sunrise, golden light casting long shadows, misty valleys, wide-angle perspective, majestic scenery, dramatic sky with clouds, nature photography",
+    "category": "landscape",
+    "image_path": "[]",
+    "created_at": "2026-11-08T10:00:00Z"
+  },
+  {
+    "id": 5,
+    "title": "nature",
+    "content": "Close-up of a blooming pink flower with water droplets, macro photography, soft bokeh background, natural daylight, detailed texture, garden setting, delicate and soft style",
+    "prompt": "Close-up of a blooming pink flower with water droplets, macro photography, soft bokeh background, natural daylight, detailed texture, garden setting, delicate and soft style",
+    "category": "nature",
+    "image_path": "[]",
+    "created_at": "2026-11-09T10:00:00Z"
+  },
+  {
+    "id": 6,
+    "title": "lifestyle",
+    "content": "An elegant dinner table with white tablecloth, lit candles, fine dining setup, wine glasses, formal place settings, warm ambient lighting, luxury restaurant, fine art photography",
+    "prompt": "An elegant dinner table with white tablecloth, lit candles, fine dining setup, wine glasses, formal place settings, warm ambient lighting, luxury restaurant, fine art photography",
+    "category": "lifestyle",
+    "image_path": "[]",
+    "created_at": "2026-11-10T10:00:00Z"
+  },
+  {
+    "id": 7,
+    "title": "architecture",
+    "content": "Modern architecture photograph of a glass building with geometric patterns, sharp lines, contemporary design, blue sky in background, professional architectural photography, detail and clarity",
+    "prompt": "Modern architecture photograph of a glass building with geometric patterns, sharp lines, contemporary design, blue sky in background, professional architectural photography, detail and clarity",
+    "category": "architecture",
+    "image_path": "[]",
+    "created_at": "2026-11-11T00:00:00Z"
+  },
+  {
+    "id": 8,
+    "title": "interior",
+    "content": "A cozy home interior with wooden furniture, warm lighting, comfortable seating area, plants, minimalist decor, natural elements, inviting atmosphere, interior design photography",
+    "prompt": "A cozy home interior with wooden furniture, warm lighting, comfortable seating area, plants, minimalist decor, natural elements, inviting atmosphere, interior design photography",
+    "category": "interior",
+    "image_path": "[]",
+    "created_at": "2026-11-11T06:00:00Z"
+  },
+  {
+    "id": 9,
+    "title": "food",
+    "content": "Food photography of a gourmet burger with fresh lettuce, tomato, cheese, artisanal bun, on a dark plate, studio lighting, appetizing composition, professional food photography, high resolution",
+    "prompt": "Food photography of a gourmet burger with fresh lettuce, tomato, cheese, artisanal bun, on a dark plate, studio lighting, appetizing composition, professional food photography, high resolution",
+    "category": "food",
+    "image_path": "[]",
+    "created_at": "2026-11-11T12:00:00Z"
+  },
+  {
+    "id": 9,
+    "title": "food",
+    "content": "Food photography of a gourmet burger with fresh lettuce, tomato, cheese, artisanal bun, on a dark plate, studio lighting, appetizing composition, professional food photography, high resolution",
+    "prompt": "Food photography of a gourmet burger with fresh lettuce, tomato, cheese, artisanal bun, on a dark plate, studio lighting, appetizing composition, professional food photography, high resolution",
+    "category": "food",
+    "image_path": "[]",
+    "created_at": "2026-11-11T12:00:00Z"
+  },
+  {
+    "id": 9,
+    "title": "food",
+    "content": "Food photography of a gourmet burger with fresh lettuce, tomato, cheese, artisanal bun, on a dark plate, studio lighting, appetizing composition, professional food photography, high resolution",
+    "prompt": "Food photography of a gourmet burger with fresh lettuce, tomato, cheese, artisanal bun, on a dark plate, studio lighting, appetizing composition, professional food photography, high resolution",
+    "category": "food",
+    "image_path": "[]",
+    "created_at": "2026-11-11T12:00:00Z"
+  },
+  {
+    "id": 9,
+    "title": "food",
+    "content": "Food photography of a gourmet burger with fresh lettuce, tomato, cheese, artisanal bun, on a dark plate, studio lighting, appetizing composition, professional food photography, high resolution",
+    "prompt": "Food photography of a gourmet burger with fresh lettuce, tomato, cheese, artisanal bun, on a dark plate, studio lighting, appetizing composition, professional food photography, high resolution",
+    "category": "food",
+    "image_path": "[]",
+    "created_at": "2026-11-11T12:00:00Z"
+  },
+  {
+    "id": 9,
+    "title": "food",
+    "content": "Food photography of a gourmet burger with fresh lettuce, tomato, cheese, artisanal bun, on a dark plate, studio lighting, appetizing composition, professional food photography, high resolution",
+    "prompt": "Food photography of a gourmet burger with fresh lettuce, tomato, cheese, artisanal bun, on a dark plate, studio lighting, appetizing composition, professional food photography, high resolution",
+    "category": "food",
+    "image_path": "[]",
+    "created_at": "2026-11-11T12:00:00Z"
+  },
+  {
+    "id": 9,
+    "title": "food",
+    "content": "Food photography of a gourmet burger with fresh lettuce, tomato, cheese, artisanal bun, on a dark plate, studio lighting, appetizing composition, professional food photography, high resolution",
+    "prompt": "Food photography of a gourmet burger with fresh lettuce, tomato, cheese, artisanal bun, on a dark plate, studio lighting, appetizing composition, professional food photography, high resolution",
+    "category": "food",
+    "image_path": "[]",
+    "created_at": "2026-11-11T12:00:00Z"
+  },
+  {
+    "id": 10,
+    "title": "sports",
+    "content": "Action sports photo of a skateboarder performing a trick in mid-air, dynamic composition, sharp movement capture, skate park background, energy and motion, professional sports photography",
+    "prompt": "Action sports photo of a skateboarder performing a trick in mid-air, dynamic composition, sharp movement capture, skate park background, energy and motion, professional sports photography",
+    "category": "sports",
+    "image_path": "[]",
+    "created_at": "2026-11-11T16:00:00Z"
+  },
+  {
+    "id": 11,
+    "title": "nature",
+    "content": "Underwater photography of a colorful coral reef with tropical fish swimming, crystal clear water, vibrant colors, natural sunlight filtering from above, marine life photography, peaceful seascape",
+    "prompt": "Underwater photography of a colorful coral reef with tropical fish swimming, crystal clear water, vibrant colors, natural sunlight filtering from above, marine life photography, peaceful seascape",
+    "category": "nature",
+    "image_path": "[]",
+    "created_at": "2026-11-11T18:00:00Z"
+  },
+  {
+    "id": 12,
+    "title": "product",
+    "content": "A sleek gaming setup with multiple monitors, RGB lighting, high-end keyboard and mouse, racing chair, ambient blue lighting, modern tech aesthetic, indoor photography",
+    "prompt": "A sleek gaming setup with multiple monitors, RGB lighting, high-end keyboard and mouse, racing chair, ambient blue lighting, modern tech aesthetic, indoor photography",
+    "category": "product",
+    "image_path": "[]",
+    "created_at": "2026-11-11T19:10:00Z"
+  },
+  {
+    "id": 13,
+    "title": "architecture",
+    "content": "Vintage film photography of an old train station, nostalgic atmosphere, retro color grading, warm tones, architectural details, historical building, cinematic quality",
+    "prompt": "Vintage film photography of an old train station, nostalgic atmosphere, retro color grading, warm tones, architectural details, historical building, cinematic quality",
+    "category": "architecture",
+    "image_path": "[]",
+    "created_at": "2026-11-11T19:20:00Z"
+  },
+  {
+    "id": 14,
+    "title": "abstract",
+    "content": "Abstract art photograph with geometric shapes, vibrant colors, modern art installation, creative composition, contemporary art, studio lighting, artistic expression",
+    "prompt": "Abstract art photograph with geometric shapes, vibrant colors, modern art installation, creative composition, contemporary art, studio lighting, artistic expression",
+    "category": "abstract",
+    "image_path": "[]",
+    "created_at": "2026-11-11T19:30:00Z"
+  },
+  {
+    "id": 15,
+    "title": "lifestyle",
+    "content": "A peaceful yoga session in a zen garden, person in lotus position, morning sunlight, natural plants, wooden platforms, spa atmosphere, wellness photography",
+    "prompt": "A peaceful yoga session in a zen garden, person in lotus position, morning sunlight, natural plants, wooden platforms, spa atmosphere, wellness photography",
+    "category": "lifestyle",
+    "image_path": "[]",
+    "created_at": "2026-11-11T19:40:00Z"
+  },
+  {
+    "id": 16,
+    "title": "fashion",
+    "content": "High fashion runway photography showing a model wearing avant-garde designer clothing, dramatic lighting, professional makeup, confident expression, luxury fashion, studio backdrop",
+    "prompt": "High fashion runway photography showing a model wearing avant-garde designer clothing, dramatic lighting, professional makeup, confident expression, luxury fashion, studio backdrop",
+    "category": "fashion",
+    "image_path": "[]",
+    "created_at": "2026-11-11T19:45:00Z"
+  },
+  {
+    "id": 17,
+    "title": "nature",
+    "content": "Macro photography of a butterfly wing showing intricate scales and patterns, detailed texture, vibrant colors, natural lighting, scientific photography, high magnification",
+    "prompt": "Macro photography of a butterfly wing showing intricate scales and patterns, detailed texture, vibrant colors, natural lighting, scientific photography, high magnification",
+    "category": "nature",
+    "image_path": "[]",
+    "created_at": "2026-11-11T19:50:00Z"
+  },
+  {
+    "id": 18,
+    "title": "food",
+    "content": "Commercial food photography of artisanal coffee with latte art, croissant, coffee shop ambiance, warm lighting, inviting composition, café aesthetic, professional styling",
+    "prompt": "Commercial food photography of artisanal coffee with latte art, croissant, coffee shop ambiance, warm lighting, inviting composition, café aesthetic, professional styling",
+    "category": "food",
+    "image_path": "[]",
+    "created_at": "2026-11-11T19:52:00Z"
+  },
+  {
+    "id": 19,
+    "title": "portrait",
+    "content": "A professional headshot portrait with soft studio lighting, clean background, confident expression, business attire, perfect skin tone, corporate photography",
+    "prompt": "A professional headshot portrait with soft studio lighting, clean background, confident expression, business attire, perfect skin tone, corporate photography",
+    "category": "portrait",
+    "image_path": "[]",
+    "created_at": "2026-11-11T19:55:00Z"
+  },
+  {
+    "id": 20,
+    "title": "landscape",
+    "content": "Landscape photography of a misty forest with towering trees, fog rolling through, golden morning light, serene woodland scene, nature's tranquility, atmospheric perspective",
+    "prompt": "Landscape photography of a misty forest with towering trees, fog rolling through, golden morning light, serene woodland scene, nature's tranquility, atmospheric perspective",
+    "category": "landscape",
+    "image_path": "[]",
+    "created_at": "2026-11-11T19:59:00Z"
+  }
+]

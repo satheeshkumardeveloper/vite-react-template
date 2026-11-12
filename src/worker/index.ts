@@ -1318,4 +1318,109 @@ app.delete("/api/saved-history/:id", async (c) => {
 	}
 });
 
+// Prompt Editor data endpoints
+app.get("/api/prompt-editor/history/titles", async (c) => {
+	try {
+		const db = c.env.DB as D1Database;
+		if (!db) {
+			return c.json({ error: "D1 binding DB is missing in Worker environment." }, 500);
+		}
+
+		const { results } = await db
+			.prepare(
+				"SELECT DISTINCT TRIM(title) AS title FROM saved_history WHERE title IS NOT NULL AND TRIM(title) <> '' ORDER BY TRIM(title) COLLATE NOCASE ASC",
+			)
+			.all();
+
+		const titles = (results || [])
+			.map((row) => (row as { title?: string | null }).title)
+			.filter((title): title is string => Boolean(title));
+
+		return c.json({ titles });
+	} catch (error) {
+		return c.json({ error: error instanceof Error ? error.message : String(error) }, 500);
+	}
+});
+
+app.get("/api/prompt-editor/history/prompts", async (c) => {
+	try {
+		const db = c.env.DB as D1Database;
+		if (!db) {
+			return c.json({ error: "D1 binding DB is missing in Worker environment." }, 500);
+		}
+
+		const title = (c.req.query("title") || "").trim();
+		if (!title) {
+			return c.json({ error: "title is required" }, 400);
+		}
+
+		const { results } = await db
+			.prepare(
+				"SELECT content FROM saved_history WHERE TRIM(title) = ? AND content IS NOT NULL AND TRIM(content) <> '' ORDER BY created_at DESC, id DESC",
+			)
+			.bind(title)
+			.all();
+
+		const prompts = (results || [])
+			.map((row) => (row as { content?: string | null }).content)
+			.filter((content): content is string => Boolean(content));
+
+		return c.json({ prompts });
+	} catch (error) {
+		return c.json({ error: error instanceof Error ? error.message : String(error) }, 500);
+	}
+});
+
+app.get("/api/prompt-editor/pose/titles", async (c) => {
+	try {
+		const db = c.env.DB as D1Database;
+		if (!db) {
+			return c.json({ error: "D1 binding DB is missing in Worker environment." }, 500);
+		}
+
+		const { results } = await db
+			.prepare(
+				"SELECT DISTINCT TRIM(title) AS title FROM pose_prompt WHERE title IS NOT NULL AND TRIM(title) <> '' ORDER BY TRIM(title) COLLATE NOCASE ASC",
+			)
+			.all();
+
+		const titles = (results || [])
+			.map((row) => (row as { title?: string | null }).title)
+			.filter((title): title is string => Boolean(title));
+
+		return c.json({ titles });
+	} catch (error) {
+		return c.json({ error: error instanceof Error ? error.message : String(error) }, 500);
+	}
+});
+
+app.get("/api/prompt-editor/pose/prompts", async (c) => {
+	try {
+		const db = c.env.DB as D1Database;
+		if (!db) {
+			return c.json({ error: "D1 binding DB is missing in Worker environment." }, 500);
+		}
+
+		const title = (c.req.query("title") || "").trim();
+		if (!title) {
+			return c.json({ error: "title is required" }, 400);
+		}
+
+		const { results } = await db
+			.prepare(
+				"SELECT content FROM pose_prompt WHERE TRIM(title) = ? AND content IS NOT NULL AND TRIM(content) <> '' ORDER BY updated_at DESC, id DESC",
+			)
+			.bind(title)
+			.all();
+
+		const prompts = (results || [])
+			.map((row) => (row as { content?: string | null }).content)
+			.filter((content): content is string => Boolean(content));
+
+		return c.json({ prompts });
+	} catch (error) {
+		return c.json({ error: error instanceof Error ? error.message : String(error) }, 500);
+	}
+});
+
 export default app;

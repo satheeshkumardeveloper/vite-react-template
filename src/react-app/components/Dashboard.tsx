@@ -7,11 +7,12 @@ import { Clipboard } from "./Clipboard";
 import { PosePrompt } from "./PosePrompt";
 import { Files } from "./Files";
 import { AIChat } from "./AIChat";
+import { PromptEditor } from "./PromptEditor";
 import "../styles/Dashboard.css";
 
 type DashboardProps = {
-	activeView: "dashboard" | "image-prompt" | "image-cloud" | "history" | "instruction" | "clipboard" | "pose-prompt" | "files" | "ai-chat";
-	onNavigate: (view: "dashboard" | "image-prompt" | "image-cloud" | "history" | "instruction" | "clipboard" | "pose-prompt" | "files" | "ai-chat") => void;
+	activeView: "dashboard" | "image-prompt" | "image-cloud" | "history" | "instruction" | "clipboard" | "pose-prompt" | "files" | "ai-chat" | "prompt-editor";
+	onNavigate: (view: "dashboard" | "image-prompt" | "image-cloud" | "history" | "instruction" | "clipboard" | "pose-prompt" | "files" | "ai-chat" | "prompt-editor") => void;
 };
 
 export function Dashboard({ activeView, onNavigate }: DashboardProps) {
@@ -97,10 +98,17 @@ export function Dashboard({ activeView, onNavigate }: DashboardProps) {
 							<div className="dropdown-section">
 								<button
 									type="button"
-									className="dropdown-link"
+									className={activeView === "instruction" ? "dropdown-link active" : "dropdown-link"}
 									onClick={() => onNavigate("instruction")}
 								>
 									Instruction Management
+								</button>
+								<button
+									type="button"
+									className={activeView === "prompt-editor" ? "dropdown-link active" : "dropdown-link"}
+									onClick={() => onNavigate("prompt-editor")}
+								>
+									Prompt Editor
 								</button>
 							</div>
 						</div>
@@ -141,6 +149,9 @@ export function Dashboard({ activeView, onNavigate }: DashboardProps) {
 				</button>
 				<button type="button" className={activeView === "instruction" ? "mobile-nav-button mobile-nav-button--active" : "mobile-nav-button"} onClick={() => onNavigate("instruction")}>
 					Instruction Management
+				</button>
+				<button type="button" className={activeView === "prompt-editor" ? "mobile-nav-button mobile-nav-button--active" : "mobile-nav-button"} onClick={() => onNavigate("prompt-editor")}>
+					Prompt Editor
 				</button>
 			</div>
 
@@ -191,6 +202,10 @@ export function Dashboard({ activeView, onNavigate }: DashboardProps) {
 			) : activeView === "files" ? (
 				<div className="dashboard-card dashboard-card--full">
 					<Files embedded />
+				</div>
+			) : activeView === "prompt-editor" ? (
+				<div className="dashboard-card dashboard-card--full">
+					<PromptEditor embedded />
 				</div>
 			) : null}
 			</div>
