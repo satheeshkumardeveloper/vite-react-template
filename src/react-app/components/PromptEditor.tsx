@@ -84,7 +84,8 @@ export function PromptEditor({ embedded }: PromptEditorProps) {
 	const [selectedPoseIndexes, setSelectedPoseIndexes] = useState<Set<number>>(new Set());
 	const [lastHistoryCheckedIndex, setLastHistoryCheckedIndex] = useState<number | null>(null);
 	const [lastPoseCheckedIndex, setLastPoseCheckedIndex] = useState<number | null>(null);
-	const [copiedMergedIndex, setCopiedMergedIndex] = useState<number | null>(null);
+	const [copiedMergedIndexes, setCopiedMergedIndexes] = useState<Set<number>>(new Set());
+	const [lastCopiedMergedIndex, setLastCopiedMergedIndex] = useState<number | null>(null);
 	const [undoClipboardText, setUndoClipboardText] = useState<string | null>(null);
 
 	const summaryRowCount = Math.max(historyPromptList.length, posePromptList.length);
@@ -429,20 +430,25 @@ export function PromptEditor({ embedded }: PromptEditorProps) {
 
 			await navigator.clipboard.writeText(value);
 			setUndoClipboardText(previousClipboard);
-			setCopiedMergedIndex(index);
+			setCopiedMergedIndexes((prev) => {
+				const next = new Set(prev);
+				next.add(index);
+				return next;
+			});
+			setLastCopiedMergedIndex(index);
 			setStatus("Merged row copied.");
 		} catch {
 			setStatus("Clipboard access is blocked by the browser.");
 		}
 	};
 
-	const handleUndoCopy = async () => {
-		if (copiedMergedIndex === null) {
+	const handleUndoCopy = async (index: number) => {
+		if (!copiedMergedIndexes.has(index)) {
 			setStatus("Nothing to undo.");
 			return;
 		}
 
-		if (undoClipboardText !== null) {
+		if (lastCopiedMergedIndex === index && undoClipboardText !== null) {
 			try {
 				await navigator.clipboard.writeText(undoClipboardText);
 			} catch {
@@ -451,13 +457,21 @@ export function PromptEditor({ embedded }: PromptEditorProps) {
 			}
 		}
 
-		setCopiedMergedIndex(null);
-		setUndoClipboardText(null);
+		setCopiedMergedIndexes((prev) => {
+			const next = new Set(prev);
+			next.delete(index);
+			return next;
+		});
+		if (lastCopiedMergedIndex === index) {
+			setLastCopiedMergedIndex(null);
+			setUndoClipboardText(null);
+		}
 		setStatus("Copy undone.");
 	};
 
 	useEffect(() => {
-		setCopiedMergedIndex(null);
+		setCopiedMergedIndexes(new Set());
+		setLastCopiedMergedIndex(null);
 		setUndoClipboardText(null);
 	}, [mergedPrompts]);
 
@@ -640,7 +654,7 @@ export function PromptEditor({ embedded }: PromptEditorProps) {
 					mergedPrompts.map((result, index) => (
 						<div
 							key={`${result}-${index}`}
-							className={copiedMergedIndex === index ? "prompt-editor-result-item prompt-editor-result-item--copied" : "prompt-editor-result-item"}
+							className={copiedMergedIndexes.has(index) ? "prompt-editor-result-item prompt-editor-result-item--copied" : "prompt-editor-result-item"}
 						>
 							<span className="prompt-editor-result-text" title={result}>{result}</span>
 							<div className="prompt-editor-result-actions">
@@ -653,11 +667,11 @@ export function PromptEditor({ embedded }: PromptEditorProps) {
 								>
 									⎘
 								</button>
-								{copiedMergedIndex === index ? (
+								{copiedMergedIndexes.has(index) ? (
 									<button
 										type="button"
 										className="prompt-editor-undo-button"
-										onClick={handleUndoCopy}
+										onClick={() => handleUndoCopy(index)}
 									>
 										Undo
 									</button>
