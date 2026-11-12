@@ -60,6 +60,12 @@ const parseCompletedSentences = (value: string) => {
 	return sentenceBlocks;
 };
 
+const truncateForTable = (value: string, maxLength = 50) => {
+	const normalized = String(value || "").replace(/\s+/g, " ").trim();
+	if (normalized.length <= maxLength) return normalized;
+	return `${normalized.slice(0, maxLength)}...`;
+};
+
 export function PromptEditor({ embedded }: PromptEditorProps) {
 	const [historyCategories, setHistoryCategories] = useState<string[]>([]);
 	const [poseCategories, setPoseCategories] = useState<string[]>([]);
@@ -416,7 +422,7 @@ export function PromptEditor({ embedded }: PromptEditorProps) {
 						<tr>
 							<th className="prompt-editor-control-cell">Filter</th>
 							<th className="prompt-editor-control-cell">
-								<div className="prompt-editor-header-row-tools">
+								<div className="prompt-editor-header-inline-control">
 									<input
 										type="checkbox"
 										className="prompt-editor-small-checkbox"
@@ -425,30 +431,30 @@ export function PromptEditor({ embedded }: PromptEditorProps) {
 										disabled={historySelectableIndexes.length === 0}
 										aria-label="Select all history rows"
 									/>
+									<select
+										id="history-category"
+										className="prompt-editor-header-control"
+										value={historyCategory}
+										onChange={(event) => setHistoryCategory(event.target.value)}
+										disabled={historyCategories.length === 0}
+									>
+										{historyCategories.length === 0 ? (
+											<option value="">No history titles</option>
+										) : (
+											<>
+												<option value="">Select</option>
+												{historyCategories.map((category) => (
+													<option key={category} value={category}>
+														{category}
+													</option>
+												))}
+											</>
+										)}
+									</select>
 								</div>
-								<select
-									id="history-category"
-									className="prompt-editor-header-control"
-									value={historyCategory}
-									onChange={(event) => setHistoryCategory(event.target.value)}
-									disabled={historyCategories.length === 0}
-								>
-									{historyCategories.length === 0 ? (
-										<option value="">No history titles</option>
-									) : (
-										<>
-											<option value="">Select</option>
-											{historyCategories.map((category) => (
-												<option key={category} value={category}>
-													{category}
-												</option>
-											))}
-										</>
-									)}
-								</select>
 							</th>
 							<th className="prompt-editor-control-cell">
-								<div className="prompt-editor-header-row-tools">
+								<div className="prompt-editor-header-inline-control">
 									<input
 										type="checkbox"
 										className="prompt-editor-small-checkbox"
@@ -457,27 +463,27 @@ export function PromptEditor({ embedded }: PromptEditorProps) {
 										disabled={poseSelectableIndexes.length === 0}
 										aria-label="Select all pose rows"
 									/>
+									<select
+										id="pose-category"
+										className="prompt-editor-header-control"
+										value={poseCategory}
+										onChange={(event) => setPoseCategory(event.target.value)}
+										disabled={poseCategories.length === 0}
+									>
+										{poseCategories.length === 0 ? (
+											<option value="">No pose titles</option>
+										) : (
+											<>
+												<option value="">Select</option>
+												{poseCategories.map((category) => (
+													<option key={category} value={category}>
+														{category}
+													</option>
+												))}
+											</>
+										)}
+									</select>
 								</div>
-								<select
-									id="pose-category"
-									className="prompt-editor-header-control"
-									value={poseCategory}
-									onChange={(event) => setPoseCategory(event.target.value)}
-									disabled={poseCategories.length === 0}
-								>
-									{poseCategories.length === 0 ? (
-										<option value="">No pose titles</option>
-									) : (
-										<>
-											<option value="">Select</option>
-											{poseCategories.map((category) => (
-												<option key={category} value={category}>
-													{category}
-												</option>
-											))}
-										</>
-									)}
-								</select>
 							</th>
 							<th className="prompt-editor-control-cell">
 								<input
@@ -516,14 +522,9 @@ export function PromptEditor({ embedded }: PromptEditorProps) {
 											disabled={!row.historyValue}
 											aria-label={`Select history row ${row.index + 1}`}
 										/>
-										<button
-											type="button"
-											className={row.historyValue && row.historyValue === selectedHistoryPrompt ? "prompt-editor-table-button prompt-editor-table-button--active" : "prompt-editor-table-button"}
-											onClick={() => row.historyValue && setSelectedHistoryPrompt(row.historyValue)}
-											disabled={!row.historyValue}
-										>
-											{row.historyValue || "-"}
-										</button>
+										<span className="prompt-editor-table-text" title={row.historyValue || "-"}>
+											{row.historyValue ? truncateForTable(row.historyValue) : "-"}
+										</span>
 									</div>
 								</td>
 								<td>
@@ -542,17 +543,12 @@ export function PromptEditor({ embedded }: PromptEditorProps) {
 											disabled={!row.poseValue}
 											aria-label={`Select pose row ${row.index + 1}`}
 										/>
-										<button
-											type="button"
-											className={row.poseValue && row.poseValue === selectedPosePrompt ? "prompt-editor-table-button prompt-editor-table-button--active" : "prompt-editor-table-button"}
-											onClick={() => row.poseValue && setSelectedPosePrompt(row.poseValue)}
-											disabled={!row.poseValue}
-										>
-											{row.poseValue || "-"}
-										</button>
+										<span className="prompt-editor-table-text" title={row.poseValue || "-"}>
+											{row.poseValue ? truncateForTable(row.poseValue) : "-"}
+										</span>
 									</div>
 								</td>
-								<td>{additionalText.trim() || "-"}</td>
+								<td title={additionalText.trim() || "-"}>{additionalText.trim() ? truncateForTable(additionalText.trim()) : "-"}</td>
 							</tr>
 							);
 						})}

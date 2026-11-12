@@ -66,15 +66,16 @@
 .prompt-editor-control-cell {
 	padding: 8px 10px !important;
 }
-.prompt-editor-header-row-tools {
+
+.prompt-editor-header-inline-control {
 	display: flex;
-	justify-content: flex-start;
 	align-items: center;
-	margin-bottom: 6px;
+	gap: 8px;
 }
 
 .prompt-editor-header-control {
 	width: 100%;
+	flex: 1;
 	height: 30px;
 	border: 1px solid #30415f;
 	background: #0a1324;
@@ -89,6 +90,8 @@
 .prompt-editor-small-checkbox {
 	width: 14px;
 	height: 14px;
+	margin: 0;
+	flex: 0 0 auto;
 	accent-color: #5a8dff;
 	cursor: pointer;
 }
@@ -118,13 +121,18 @@
 
 .prompt-editor-table-button--active {
 	color: #c7d2fe;
-	text-decoration: underline;
-	text-underline-offset: 2px;
 }
 
 .prompt-editor-table-button:disabled {
 	cursor: default;
 	opacity: 0.65;
+}
+
+.prompt-editor-table-text {
+	width: 100%;
+	display: block;
+	color: inherit;
+	line-height: 1.35;
 }
 
 .prompt-editor-selection-table tbody tr:last-child td {
