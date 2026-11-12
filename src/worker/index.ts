@@ -1328,7 +1328,7 @@ app.get("/api/prompt-editor/history/titles", async (c) => {
 
 		const { results } = await db
 			.prepare(
-				"SELECT DISTINCT TRIM(title) AS title FROM saved_history WHERE title IS NOT NULL AND TRIM(title) <> '' ORDER BY TRIM(title) COLLATE NOCASE ASC",
+				"SELECT DISTINCT TRIM(category) AS title FROM image_prompts WHERE category IS NOT NULL AND TRIM(category) <> '' ORDER BY TRIM(category) COLLATE NOCASE ASC",
 			)
 			.all();
 
@@ -1356,7 +1356,7 @@ app.get("/api/prompt-editor/history/prompts", async (c) => {
 
 		const { results } = await db
 			.prepare(
-				"SELECT content FROM saved_history WHERE TRIM(title) = ? AND content IS NOT NULL AND TRIM(content) <> '' ORDER BY created_at DESC, id DESC",
+				"SELECT prompt AS content FROM image_prompts WHERE TRIM(category) = ? AND prompt IS NOT NULL AND TRIM(prompt) <> '' ORDER BY created_at DESC, id DESC",
 			)
 			.bind(title)
 			.all();
