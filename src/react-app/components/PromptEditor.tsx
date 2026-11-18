@@ -471,6 +471,17 @@ export function PromptEditor({ embedded, filterControlMode = "select" }: PromptE
 		});
 	};
 
+	const handleClearPromptColumn = (promptIndex: number) => {
+		setDynamicPromptInputValue(promptIndex, "");
+		setGeneratedPromptRowsByColumn((prev) => {
+			if (!prev[promptIndex]) return prev;
+			const next = { ...prev };
+			delete next[promptIndex];
+			return next;
+		});
+		setStatus(`Prompt ${promptIndex + 1} cleared.`);
+	};
+
 	const getDynamicPromptRowValue = (promptIndex: number, rowIndex: number) => {
 		const generatedValues = generatedPromptRowsByColumn[promptIndex];
 		if (generatedValues && generatedValues.length > 0) {
@@ -787,13 +798,31 @@ export function PromptEditor({ embedded, filterControlMode = "select" }: PromptE
 											const value = getDynamicPromptRowValue(promptIndex, rowIndex).trim();
 											return (
 												<td key={`dynamic-row-${rowIndex}-prompt-${promptIndex}`} title={value || "-"}>
-													{value ? truncateForTable(value) : "-"}
+													{value || "-"}
 												</td>
 											);
 										})}
 									</tr>
 								))}
 							</tbody>
+							<tfoot>
+								<tr>
+									<td className="prompt-editor-control-cell"></td>
+									{dynamicPromptIndexes.map((promptIndex) => (
+										<td key={`prompt-clear-${promptIndex}`} className="prompt-editor-control-cell">
+											<button
+												type="button"
+												className="prompt-editor-clear-button"
+												onClick={() => handleClearPromptColumn(promptIndex)}
+												aria-label={`Clear prompt ${promptIndex + 1}`}
+												title="Clear"
+											>
+												🗑
+											</button>
+										</td>
+									))}
+								</tr>
+							</tfoot>
 						</>
 					) : (
 						<>

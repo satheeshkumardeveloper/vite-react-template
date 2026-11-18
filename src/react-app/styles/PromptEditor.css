@@ -117,6 +117,30 @@
 	box-shadow: 0 0 0 2px rgba(90, 141, 255, 0.2);
 }
 
+.prompt-editor-input-actions-stack {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.prompt-editor-clear-button {
+	height: 24px;
+	border-radius: 6px;
+	border: 1px solid #30415f;
+	background: #1a2438;
+	color: #e5edf8;
+	cursor: pointer;
+	font-size: 11px;
+	font-weight: 700;
+	line-height: 1;
+	padding: 0 8px;
+	align-self: flex-start;
+}
+
+.prompt-editor-clear-button:hover {
+	filter: brightness(1.08);
+}
+
 .prompt-editor-header-control {
 	width: 100%;
 	flex: 1;
@@ -150,6 +174,7 @@
 	font-weight: 600;
 	background: #0b1428;
 	word-break: break-word;
+	overflow-wrap: anywhere;
 }
 
 .prompt-editor-table-button {
@@ -254,7 +279,7 @@
 
 .prompt-editor-result-item {
 	display: flex;
-	align-items: center;
+	align-items: flex-start;
 	justify-content: space-between;
 	gap: 8px;
 }
@@ -262,9 +287,9 @@
 .prompt-editor-result-text {
 	flex: 1;
 	min-width: 0;
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+	word-break: break-word;
 }
 
 .prompt-editor-result-actions {
@@ -347,8 +372,9 @@
 }
 
 .prompt-editor-result-list {
-	max-height: 280px;
+	max-height: none;
 	min-height: 132px;
+	overflow-y: visible;
 }
 
 .prompt-editor-empty {
@@ -397,9 +423,42 @@
 		grid-template-columns: 1fr;
 	}
 
+	.prompt-editor-dynamic-top-controls {
+		flex-wrap: wrap;
+		align-items: flex-end;
+	}
+
+	.prompt-editor-dynamic-actions {
+		margin-left: 0;
+		width: 100%;
+		justify-content: flex-end;
+	}
+
 	.prompt-editor-list,
 	.prompt-editor-result-list {
-		max-height: 200px;
+		max-height: none;
+	}
+}
+
+@media (max-width: 640px) {
+	.prompt-editor-selection-table {
+		min-width: 0;
+	}
+
+	.prompt-editor-selection-table th,
+	.prompt-editor-selection-table td {
+		padding: 8px;
+		font-size: 11px;
+	}
+
+	.prompt-editor-header-inline-control {
+		gap: 6px;
+	}
+
+	.prompt-editor-copy-button,
+	.prompt-editor-merge-button,
+	.prompt-editor-delete-button {
+		min-width: 120px;
 	}
 }
 .prompt-editor-row-cell {
