@@ -152,7 +152,26 @@
 	transition: border-color 0.16s ease, box-shadow 0.16s ease;
 }
 
+.prompt-editor-dynamic-count-group select {
+	width: 220px;
+	height: 32px;
+	border: 1px solid #30415f;
+	background: #0a1324;
+	color: #e5edf8;
+	padding: 0 10px;
+	font-size: 12px;
+	border-radius: 8px;
+	outline: none;
+	box-sizing: border-box;
+	transition: border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
 .prompt-editor-dynamic-count-group input:focus {
+	border-color: #5a8dff;
+	box-shadow: 0 0 0 2px rgba(90, 141, 255, 0.2);
+}
+
+.prompt-editor-dynamic-count-group select:focus {
 	border-color: #5a8dff;
 	box-shadow: 0 0 0 2px rgba(90, 141, 255, 0.2);
 }
@@ -499,6 +518,11 @@
 	.prompt-editor-merge-button,
 	.prompt-editor-delete-button {
 		min-width: 120px;
+	}
+
+	.prompt-editor-dynamic-count-group select {
+		width: 100%;
+		min-width: 0;
 	}
 }
 .prompt-editor-row-cell {

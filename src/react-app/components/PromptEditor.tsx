@@ -15,6 +15,31 @@ const POSE_JSON_SOURCE_URL = "/pose-prompt/entries.json";
 const ENVIRONMENT = import.meta.env.VITE_ENVIRONMENT?.trim() || "production";
 const isLocalMode = ENVIRONMENT === "local";
 const AI_PROMPT_MODEL = "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b";
+const AI_PROMPT_MODEL_OPTIONS = [
+	{ value: "gemini-3.8-flash", label: "Gemini 3.8 Flash" },
+	{ value: "gemini-3.7-flash", label: "Gemini 3.7 Flash" },
+	{ value: "gemini-3.6-flash", label: "Gemini 3.6 Flash" },
+	{ value: "gemini-3.5-flash", label: "Gemini 3.5 Flash" },
+	{ value: "gemini-3.5-flash-lite", label: "Gemini 3.5 Flash Lite" },
+	{ value: "gemini-3.1-pro-preview", label: "Gemini 3.1 Pro Preview" },
+	{ value: "gemini-3.1-pro-preview-customtools", label: "Gemini 3.1 Pro Preview Custom Tools" },
+	{ value: "gemini-3.1-flash-lite-preview", label: "Gemini 3.1 Flash Lite Preview" },
+	{ value: "gemini-3-pro-preview", label: "Gemini 3 Pro Preview" },
+	{ value: "gemini-3-flash-preview", label: "Gemini 3 Flash Preview" },
+	{ value: "gemini-2.5-pro", label: "Gemini 2.5 Pro" },
+	{ value: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
+	{ value: "gemini-2.5-flash-lite", label: "Gemini 2.5 Flash Lite" },
+	{ value: "@cf/zai-org/glm-4.7-flash", label: "GLM 4.7 Flash" },
+	{ value: "@cf/meta/llama-3.2-1b-instruct", label: "Llama 3.2 1B Instruct" },
+	{ value: "@cf/meta/llama-3.2-3b-instruct", label: "Llama 3.2 3B Instruct" },
+	{ value: "@cf/google/gemma-7b-it-lora", label: "Gemma 7B IT LoRA" },
+	{ value: "@cf/mistralai/mistral-small-3.1-24b-instruct", label: "Mistral Small 3.1 24B Instruct" },
+	{ value: "@cf/nvidia/nemotron-3-120b-a12b", label: "Nemotron 3 120B A12B" },
+	{ value: "@cf/openai/gpt-oss-120b", label: "GPT OSS 120B" },
+	{ value: "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b", label: "DeepSeek R1 Distill Qwen 32B" },
+	{ value: "@cf/cloudflare/clef-flash", label: "Clef Flash" },
+	{ value: "@cf/qwen/qwen3-30b-a3b-fp8", label: "Qwen 3 30B A3B FP8" },
+];
 
 type TitlesResponse = {
 	titles?: string[];
@@ -96,6 +121,7 @@ export function PromptEditor({ embedded, filterControlMode = "select" }: PromptE
 	const [generatedDynamicRowCount, setGeneratedDynamicRowCount] = useState(1);
 	const [generatedPromptRowsByColumn, setGeneratedPromptRowsByColumn] = useState<Record<number, string[]>>({});
 	const [generatingPromptIndex, setGeneratingPromptIndex] = useState<number | null>(null);
+	const [selectedAiModel, setSelectedAiModel] = useState(AI_PROMPT_MODEL);
 
 	const dynamicPromptIndexes = Array.from({ length: dynamicPromptColumnCount }, (_, index) => index);
 	const fallbackDynamicRowCount = Math.max(historyPromptList.length, posePromptList.length, 1);
@@ -540,7 +566,7 @@ export function PromptEditor({ embedded, filterControlMode = "select" }: PromptE
 
 		const rowsToGenerate = Math.max(dynamicRowCount, 1);
 		setGeneratingPromptIndex(promptIndex);
-		setStatus(`Generating Prompt ${promptIndex + 1}...`);
+		setStatus(`Generating Prompt ${promptIndex + 1} with ${selectedAiModel}...`);
 
 		try {
 			const response = await fetch("/api/ai-chat", {
@@ -549,7 +575,7 @@ export function PromptEditor({ embedded, filterControlMode = "select" }: PromptE
 					"Content-Type": "application/json",
 				},
 				body: JSON.stringify({
-					model: AI_PROMPT_MODEL,
+					model: selectedAiModel,
 					messages: [
 						{
 							role: "system",
@@ -728,6 +754,20 @@ export function PromptEditor({ embedded, filterControlMode = "select" }: PromptE
 					>
 						Generate
 					</button>
+					<div className="prompt-editor-dynamic-count-group">
+						<label htmlFor="dynamic-model-select">Model</label>
+						<select
+							id="dynamic-model-select"
+							value={selectedAiModel}
+							onChange={(event) => setSelectedAiModel(event.target.value)}
+						>
+							{AI_PROMPT_MODEL_OPTIONS.map((model) => (
+								<option key={model.value} value={model.value}>
+									{model.label}
+								</option>
+							))}
+						</select>
+					</div>
 					<div className="prompt-editor-header-inline-control prompt-editor-dynamic-actions">
 						<button
 							type="button"
