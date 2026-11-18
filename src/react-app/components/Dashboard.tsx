@@ -8,11 +8,12 @@ import { PosePrompt } from "./PosePrompt";
 import { Files } from "./Files";
 import { AIChat } from "./AIChat";
 import { PromptEditor } from "./PromptEditor";
+import { AIPromptEditor } from "./AIPromptEditor";
 import "../styles/Dashboard.css";
 
 type DashboardProps = {
-	activeView: "dashboard" | "image-prompt" | "image-cloud" | "history" | "instruction" | "clipboard" | "pose-prompt" | "files" | "ai-chat" | "prompt-editor";
-	onNavigate: (view: "dashboard" | "image-prompt" | "image-cloud" | "history" | "instruction" | "clipboard" | "pose-prompt" | "files" | "ai-chat" | "prompt-editor") => void;
+	activeView: "dashboard" | "image-prompt" | "image-cloud" | "history" | "instruction" | "clipboard" | "pose-prompt" | "files" | "ai-chat" | "prompt-editor" | "ai-prompt-editor";
+	onNavigate: (view: "dashboard" | "image-prompt" | "image-cloud" | "history" | "instruction" | "clipboard" | "pose-prompt" | "files" | "ai-chat" | "prompt-editor" | "ai-prompt-editor") => void;
 };
 
 export function Dashboard({ activeView, onNavigate }: DashboardProps) {
@@ -110,6 +111,13 @@ export function Dashboard({ activeView, onNavigate }: DashboardProps) {
 								>
 									Prompt Editor
 								</button>
+								<button
+									type="button"
+									className={activeView === "ai-prompt-editor" ? "dropdown-link active" : "dropdown-link"}
+									onClick={() => onNavigate("ai-prompt-editor")}
+								>
+									AI-Prompt Editor
+								</button>
 							</div>
 						</div>
 					</div>
@@ -152,6 +160,9 @@ export function Dashboard({ activeView, onNavigate }: DashboardProps) {
 				</button>
 				<button type="button" className={activeView === "prompt-editor" ? "mobile-nav-button mobile-nav-button--active" : "mobile-nav-button"} onClick={() => onNavigate("prompt-editor")}>
 					Prompt Editor
+				</button>
+				<button type="button" className={activeView === "ai-prompt-editor" ? "mobile-nav-button mobile-nav-button--active" : "mobile-nav-button"} onClick={() => onNavigate("ai-prompt-editor")}>
+					AI-Prompt Editor
 				</button>
 			</div>
 
@@ -206,6 +217,10 @@ export function Dashboard({ activeView, onNavigate }: DashboardProps) {
 			) : activeView === "prompt-editor" ? (
 				<div className="dashboard-card dashboard-card--full">
 					<PromptEditor embedded />
+				</div>
+			) : activeView === "ai-prompt-editor" ? (
+				<div className="dashboard-card dashboard-card--full">
+					<AIPromptEditor embedded />
 				</div>
 			) : null}
 			</div>

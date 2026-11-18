@@ -3,6 +3,7 @@ import "../styles/PromptEditor.css";
 
 type PromptEditorProps = {
 	embedded?: boolean;
+	filterControlMode?: "select" | "input";
 };
 
 const HISTORY_TITLES_API = "/api/prompt-editor/history/titles";
@@ -13,6 +14,7 @@ const HISTORY_JSON_SOURCE_URL = "/saved-history/entries.json";
 const POSE_JSON_SOURCE_URL = "/pose-prompt/entries.json";
 const ENVIRONMENT = import.meta.env.VITE_ENVIRONMENT?.trim() || "production";
 const isLocalMode = ENVIRONMENT === "local";
+const AI_PROMPT_MODEL = "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b";
 
 type TitlesResponse = {
 	titles?: string[];
@@ -66,7 +68,8 @@ const truncateForTable = (value: string, maxLength = 50) => {
 	return `${normalized.slice(0, maxLength)}...`;
 };
 
-export function PromptEditor({ embedded }: PromptEditorProps) {
+export function PromptEditor({ embedded, filterControlMode = "select" }: PromptEditorProps) {
+	const useInputControls = filterControlMode === "input";
 	const [historyCategories, setHistoryCategories] = useState<string[]>([]);
 	const [poseCategories, setPoseCategories] = useState<string[]>([]);
 	const [historyCategory, setHistoryCategory] = useState("");
@@ -87,6 +90,16 @@ export function PromptEditor({ embedded }: PromptEditorProps) {
 	const [copiedMergedIndexes, setCopiedMergedIndexes] = useState<Set<number>>(new Set());
 	const [lastCopiedMergedIndex, setLastCopiedMergedIndex] = useState<number | null>(null);
 	const [undoClipboardText, setUndoClipboardText] = useState<string | null>(null);
+	const [dynamicPromptColumnCount, setDynamicPromptColumnCount] = useState(3);
+	const [extraPromptInputs, setExtraPromptInputs] = useState<string[]>([]);
+	const [dynamicRowCountInput, setDynamicRowCountInput] = useState("1");
+	const [generatedDynamicRowCount, setGeneratedDynamicRowCount] = useState(1);
+	const [generatedPromptRowsByColumn, setGeneratedPromptRowsByColumn] = useState<Record<number, string[]>>({});
+	const [generatingPromptIndex, setGeneratingPromptIndex] = useState<number | null>(null);
+
+	const dynamicPromptIndexes = Array.from({ length: dynamicPromptColumnCount }, (_, index) => index);
+	const fallbackDynamicRowCount = Math.max(historyPromptList.length, posePromptList.length, 1);
+	const dynamicRowCount = Math.max(generatedDynamicRowCount || fallbackDynamicRowCount, 1);
 
 	const summaryRowCount = Math.max(historyPromptList.length, posePromptList.length);
 	const summaryRows = Array.from({ length: summaryRowCount }, (_, index) => {
@@ -122,6 +135,41 @@ export function PromptEditor({ embedded }: PromptEditorProps) {
 			throw new Error(data?.error || `Request failed (${res.status})`);
 		}
 		return data as T;
+	};
+
+	const readResponseText = (payload: unknown) => {
+		if (!payload || typeof payload !== "object") return "";
+		const candidate = payload as {
+			response?: string;
+			choices?: Array<{ message?: { content?: string | null } }>;
+			message?: string;
+			text?: string;
+		};
+		return String(candidate.response || candidate.choices?.[0]?.message?.content || candidate.message || candidate.text || "").trim();
+	};
+
+	const parsePointRows = (value: string) => {
+		const normalized = String(value || "").replace(/\r\n/g, "\n").trim();
+		if (!normalized) return [] as string[];
+
+		const numberedMatches = normalized.match(/(?:^|\n)\s*\d+[.)]\s*.+(?=(?:\n\s*\d+[.)]\s*)|$)/g);
+		if (numberedMatches && numberedMatches.length > 0) {
+			return numberedMatches
+				.map((line) => line.replace(/^\s*\d+[.)]\s*/, "").trim())
+				.filter(Boolean);
+		}
+
+		const bulletMatches = normalized.match(/(?:^|\n)\s*[-*•]\s*.+/g);
+		if (bulletMatches && bulletMatches.length > 0) {
+			return bulletMatches
+				.map((line) => line.replace(/^\s*[-*•]\s*/, "").trim())
+				.filter(Boolean);
+		}
+
+		return normalized
+			.split(/\n+/)
+			.map((line) => line.trim())
+			.filter(Boolean);
 	};
 
 	useEffect(() => {
@@ -187,6 +235,11 @@ export function PromptEditor({ embedded }: PromptEditorProps) {
 
 	useEffect(() => {
 		const loadHistoryPrompts = async () => {
+			if (useInputControls) {
+				setHistoryPromptList([]);
+				return;
+			}
+
 			if (!historyCategory) {
 				setHistoryPromptList([]);
 				return;
@@ -218,10 +271,15 @@ export function PromptEditor({ embedded }: PromptEditorProps) {
 		};
 
 		loadHistoryPrompts();
-	}, [historyCategory, localHistoryRows]);
+	}, [historyCategory, localHistoryRows, useInputControls]);
 
 	useEffect(() => {
 		const loadPosePrompts = async () => {
+			if (useInputControls) {
+				setPosePromptList([]);
+				return;
+			}
+
 			if (!poseCategory) {
 				setPosePromptList([]);
 				return;
@@ -255,7 +313,7 @@ export function PromptEditor({ embedded }: PromptEditorProps) {
 		};
 
 		loadPosePrompts();
-	}, [poseCategory, localPoseRows]);
+	}, [poseCategory, localPoseRows, useInputControls]);
 
 	useEffect(() => {
 		setSelectedHistoryPrompt(historyPromptList[0] || "");
@@ -374,7 +432,169 @@ export function PromptEditor({ embedded }: PromptEditorProps) {
 		setStatus("Pose rows deleted temporarily.");
 	};
 
+	const getDynamicPromptInputValue = (index: number) => {
+		if (index === 0) return historyCategory;
+		if (index === 1) return poseCategory;
+		if (index === 2) return additionalText;
+		return extraPromptInputs[index - 3] || "";
+	};
+
+	const setDynamicPromptInputValue = (index: number, value: string) => {
+		if (index === 0) {
+			setHistoryCategory(value);
+			return;
+		}
+		if (index === 1) {
+			setPoseCategory(value);
+			return;
+		}
+		if (index === 2) {
+			setAdditionalText(value);
+			return;
+		}
+
+		const extraIndex = index - 3;
+		setExtraPromptInputs((prev) => {
+			const next = [...prev];
+			while (next.length <= extraIndex) {
+				next.push("");
+			}
+			next[extraIndex] = value;
+			return next;
+		});
+
+		setGeneratedPromptRowsByColumn((prev) => {
+			if (!prev[index]) return prev;
+			const next = { ...prev };
+			delete next[index];
+			return next;
+		});
+	};
+
+	const getDynamicPromptRowValue = (promptIndex: number, rowIndex: number) => {
+		const generatedValues = generatedPromptRowsByColumn[promptIndex];
+		if (generatedValues && generatedValues.length > 0) {
+			return generatedValues[rowIndex] ?? "";
+		}
+
+		if (promptIndex === 0) {
+			return historyPromptList[rowIndex] ?? historyCategory.trim();
+		}
+		if (promptIndex === 1) {
+			return posePromptList[rowIndex] ?? poseCategory.trim();
+		}
+		return getDynamicPromptInputValue(promptIndex).trim();
+	};
+
+	const handleAddPromptColumn = () => {
+		setDynamicPromptColumnCount((prev) => prev + 1);
+		setExtraPromptInputs((prev) => [...prev, ""]);
+	};
+
+	const handleRemovePromptColumn = () => {
+		if (dynamicPromptColumnCount <= 3) {
+			return;
+		}
+		const nextCount = dynamicPromptColumnCount - 1;
+		setDynamicPromptColumnCount(nextCount);
+		setExtraPromptInputs((prev) => prev.slice(0, Math.max(0, nextCount - 3)));
+		setGeneratedPromptRowsByColumn((prev) => {
+			const next: Record<number, string[]> = {};
+			Object.keys(prev).forEach((key) => {
+				const numericKey = Number(key);
+				if (numericKey < nextCount) {
+					next[numericKey] = prev[numericKey];
+				}
+			});
+			return next;
+		});
+	};
+
+	const handleGenerateRowsByCount = () => {
+		const parsedCount = Number.parseInt(dynamicRowCountInput, 10);
+		if (!Number.isFinite(parsedCount) || parsedCount <= 0) {
+			setStatus("Enter a valid row count greater than 0.");
+			return;
+		}
+		setGeneratedDynamicRowCount(parsedCount);
+		setStatus(`Created ${parsedCount} row${parsedCount > 1 ? "s" : ""}.`);
+	};
+
+	const handleGenerateClick = async (promptIndex: number) => {
+		const sourcePrompt = getDynamicPromptInputValue(promptIndex).trim();
+		if (!sourcePrompt) {
+			setStatus(`Enter text in Prompt ${promptIndex + 1} before generating.`);
+			return;
+		}
+
+		const rowsToGenerate = Math.max(dynamicRowCount, 1);
+		setGeneratingPromptIndex(promptIndex);
+		setStatus(`Generating Prompt ${promptIndex + 1}...`);
+
+		try {
+			const response = await fetch("/api/ai-chat", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					model: AI_PROMPT_MODEL,
+					messages: [
+						{
+							role: "system",
+							content: "You generate concise AI prompt lines. Return only a numbered list with the exact requested count. No preface and no extra explanation.",
+						},
+						{
+							role: "user",
+							content: `Create exactly ${rowsToGenerate} prompt lines based on: ${sourcePrompt}. Format strictly as numbered points 1 to ${rowsToGenerate}.`,
+						},
+					],
+				}),
+			});
+
+			const data = (await response.json().catch(() => ({}))) as unknown;
+			if (!response.ok) {
+				const payload = data as { error?: string };
+				throw new Error(payload?.error || "AI request failed");
+			}
+
+			const aiText = readResponseText(data);
+			const parsedPoints = parsePointRows(aiText);
+			const filledRows = Array.from({ length: rowsToGenerate }, (_, index) => {
+				return (parsedPoints[index] || sourcePrompt).trim();
+			});
+
+			setGeneratedPromptRowsByColumn((prev) => ({
+				...prev,
+				[promptIndex]: filledRows,
+			}));
+			setStatus(`Prompt ${promptIndex + 1} generated.`);
+		} catch (error) {
+			setStatus(error instanceof Error ? error.message : "Generation failed.");
+		} finally {
+			setGeneratingPromptIndex(null);
+		}
+	};
+
 	const handleMerge = () => {
+		if (useInputControls) {
+			const mergedRows = Array.from({ length: dynamicRowCount }, (_, rowIndex) => {
+				return dynamicPromptIndexes
+					.map((promptIndex) => getDynamicPromptRowValue(promptIndex, rowIndex).trim())
+					.filter(Boolean)
+					.join(" ");
+			}).filter(Boolean);
+
+			if (mergedRows.length === 0) {
+				setStatus("No prompt content to merge.");
+				return;
+			}
+
+			setMergedPrompts(mergedRows);
+			setStatus("");
+			return;
+		}
+
 		const historyRows = historyPromptList;
 		const poseRows = posePromptList;
 		const maxRows = Math.max(historyRows.length, poseRows.length, 1);
@@ -477,169 +697,275 @@ export function PromptEditor({ embedded }: PromptEditorProps) {
 
 	return (
 		<div className={embedded ? "prompt-editor prompt-editor--embedded" : "prompt-editor"}>
+			{useInputControls ? (
+				<div className="prompt-editor-dynamic-top-controls">
+					<div className="prompt-editor-dynamic-count-group">
+						<label htmlFor="dynamic-row-count">Count</label>
+						<input
+							id="dynamic-row-count"
+							type="number"
+							min={1}
+							step={1}
+							value={dynamicRowCountInput}
+							onChange={(event) => setDynamicRowCountInput(event.target.value)}
+						/>
+					</div>
+					<button
+						type="button"
+						className="prompt-editor-copy-button"
+						onClick={handleGenerateRowsByCount}
+					>
+						Generate
+					</button>
+					<div className="prompt-editor-header-inline-control prompt-editor-dynamic-actions">
+						<button
+							type="button"
+							className="prompt-editor-icon-button"
+							onClick={handleAddPromptColumn}
+							aria-label="Add prompt column"
+							title="Add prompt column"
+						>
+							+
+						</button>
+						<button
+							type="button"
+							className="prompt-editor-icon-button"
+							onClick={handleRemovePromptColumn}
+							disabled={dynamicPromptColumnCount <= 3}
+							aria-label="Remove prompt column"
+							title="Remove prompt column"
+						>
+							−
+						</button>
+					</div>
+				</div>
+			) : null}
 			<div className="prompt-editor-selection-table-wrap" aria-label="Prompt rows">
 				<table className="prompt-editor-selection-table">
-					<thead>
-						<tr>
-							<th>#</th>
-							<th>History Prompt</th>
-							<th>Pose Prompt</th>
-							<th>Additional Text</th>
-						</tr>
-						<tr>
-							<th className="prompt-editor-control-cell">Filter</th>
-							<th className="prompt-editor-control-cell">
-								<div className="prompt-editor-header-inline-control">
-									<input
-										type="checkbox"
-										className="prompt-editor-small-checkbox"
-										checked={allHistorySelected}
-										onChange={(event) => handleToggleAllHistory(event.target.checked)}
-										disabled={historySelectableIndexes.length === 0}
-										aria-label="Select all history rows"
-									/>
-									<select
-										id="history-category"
-										className="prompt-editor-header-control"
-										value={historyCategory}
-										onChange={(event) => setHistoryCategory(event.target.value)}
-										disabled={historyCategories.length === 0}
-									>
-										{historyCategories.length === 0 ? (
-											<option value="">No history titles</option>
-										) : (
-											<>
-												<option value="">Select</option>
-												{historyCategories.map((category) => (
-													<option key={category} value={category}>
-														{category}
-													</option>
-												))}
-											</>
-										)}
-									</select>
-								</div>
-							</th>
-							<th className="prompt-editor-control-cell">
-								<div className="prompt-editor-header-inline-control">
-									<input
-										type="checkbox"
-										className="prompt-editor-small-checkbox"
-										checked={allPoseSelected}
-										onChange={(event) => handleToggleAllPose(event.target.checked)}
-										disabled={poseSelectableIndexes.length === 0}
-										aria-label="Select all pose rows"
-									/>
-									<select
-										id="pose-category"
-										className="prompt-editor-header-control"
-										value={poseCategory}
-										onChange={(event) => setPoseCategory(event.target.value)}
-										disabled={poseCategories.length === 0}
-									>
-										{poseCategories.length === 0 ? (
-											<option value="">No pose titles</option>
-										) : (
-											<>
-												<option value="">Select</option>
-												{poseCategories.map((category) => (
-													<option key={category} value={category}>
-														{category}
-													</option>
-												))}
-											</>
-										)}
-									</select>
-								</div>
-							</th>
-							<th className="prompt-editor-control-cell">
-								<input
-									id="additional-text"
-									className="prompt-editor-header-control"
-									type="text"
-									value={additionalText}
-									onChange={(event) => setAdditionalText(event.target.value)}
-									placeholder=""
-								/>
-							</th>
-						</tr>
-					</thead>
-					<tbody>
-						{summaryRows.length === 0 ? (
-							<tr>
-								<td colSpan={4} className="prompt-editor-empty">No rows</td>
-							</tr>
-						) : summaryRows.map((row) => {
-							return (
-							<tr key={`summary-row-${row.index}`}>
-								<td>{row.index + 1}</td>
-								<td>
-									<div className="prompt-editor-row-cell">
-										<input
-											type="checkbox"
-											className="prompt-editor-small-checkbox"
-											checked={selectedHistoryIndexes.has(row.index)}
-											onChange={(event) =>
-												handleShiftToggleHistoryRow(
-													row.index,
-													event.target.checked,
-													Boolean((event.nativeEvent as MouseEvent).shiftKey),
-												)
-											}
-											disabled={!row.historyValue}
-											aria-label={`Select history row ${row.index + 1}`}
-										/>
-										<span className="prompt-editor-table-text" title={row.historyValue || "-"}>
-											{row.historyValue ? truncateForTable(row.historyValue) : "-"}
-										</span>
-									</div>
-								</td>
-								<td>
-									<div className="prompt-editor-row-cell">
-										<input
-											type="checkbox"
-											className="prompt-editor-small-checkbox"
-											checked={selectedPoseIndexes.has(row.index)}
-											onChange={(event) =>
-												handleShiftTogglePoseRow(
-													row.index,
-													event.target.checked,
-													Boolean((event.nativeEvent as MouseEvent).shiftKey),
-												)
-											}
-											disabled={!row.poseValue}
-											aria-label={`Select pose row ${row.index + 1}`}
-										/>
-										<span className="prompt-editor-table-text" title={row.poseValue || "-"}>
-											{row.poseValue ? truncateForTable(row.poseValue) : "-"}
-										</span>
-									</div>
-								</td>
-								<td title={additionalText.trim() || "-"}>{additionalText.trim() ? truncateForTable(additionalText.trim()) : "-"}</td>
-							</tr>
-							);
-						})}
-					</tbody>
+					{useInputControls ? (
+						<>
+							<thead>
+								<tr>
+									<th>#</th>
+									{dynamicPromptIndexes.map((promptIndex) => (
+										<th key={`prompt-heading-${promptIndex}`}>{`Prompt ${promptIndex + 1}`}</th>
+									))}
+								</tr>
+								<tr>
+									<th className="prompt-editor-control-cell">Filter</th>
+									{dynamicPromptIndexes.map((promptIndex) => (
+										<th key={`prompt-control-${promptIndex}`} className="prompt-editor-control-cell">
+											<div className="prompt-editor-header-inline-control">
+												<input
+													id={`dynamic-prompt-${promptIndex}`}
+													className="prompt-editor-header-control"
+													type="text"
+													value={getDynamicPromptInputValue(promptIndex)}
+													onChange={(event) => setDynamicPromptInputValue(promptIndex, event.target.value)}
+													placeholder={`Prompt ${promptIndex + 1}`}
+												/>
+												<button
+													type="button"
+													className="prompt-editor-icon-button"
+													onClick={() => void handleGenerateClick(promptIndex)}
+													disabled={generatingPromptIndex === promptIndex}
+													aria-label={`Generate prompt ${promptIndex + 1}`}
+													title="Generate"
+												>
+													{generatingPromptIndex === promptIndex ? "…" : "⚡"}
+												</button>
+											</div>
+										</th>
+									))}
+								</tr>
+							</thead>
+							<tbody>
+								{Array.from({ length: dynamicRowCount }, (_, rowIndex) => (
+									<tr key={`dynamic-row-${rowIndex}`}>
+										<td>{rowIndex + 1}</td>
+										{dynamicPromptIndexes.map((promptIndex) => {
+											const value = getDynamicPromptRowValue(promptIndex, rowIndex).trim();
+											return (
+												<td key={`dynamic-row-${rowIndex}-prompt-${promptIndex}`} title={value || "-"}>
+													{value ? truncateForTable(value) : "-"}
+												</td>
+											);
+										})}
+									</tr>
+								))}
+							</tbody>
+						</>
+					) : (
+						<>
+							<thead>
+								<tr>
+									<th>#</th>
+									<th>History Prompt</th>
+									<th>Pose Prompt</th>
+									<th>Additional Text</th>
+								</tr>
+								<tr>
+									<th className="prompt-editor-control-cell">Filter</th>
+									<th className="prompt-editor-control-cell">
+										<div className="prompt-editor-header-inline-control">
+											<input
+												type="checkbox"
+												className="prompt-editor-small-checkbox"
+												checked={allHistorySelected}
+												onChange={(event) => handleToggleAllHistory(event.target.checked)}
+												disabled={historySelectableIndexes.length === 0}
+												aria-label="Select all history rows"
+											/>
+											<select
+												id="history-category"
+												className="prompt-editor-header-control"
+												value={historyCategory}
+												onChange={(event) => setHistoryCategory(event.target.value)}
+												disabled={historyCategories.length === 0}
+											>
+												{historyCategories.length === 0 ? (
+													<option value="">No history titles</option>
+												) : (
+													<>
+														<option value="">Select</option>
+														{historyCategories.map((category) => (
+															<option key={category} value={category}>
+																{category}
+															</option>
+														))}
+													</>
+												)}
+											</select>
+										</div>
+									</th>
+									<th className="prompt-editor-control-cell">
+										<div className="prompt-editor-header-inline-control">
+											<input
+												type="checkbox"
+												className="prompt-editor-small-checkbox"
+												checked={allPoseSelected}
+												onChange={(event) => handleToggleAllPose(event.target.checked)}
+												disabled={poseSelectableIndexes.length === 0}
+												aria-label="Select all pose rows"
+											/>
+											<select
+												id="pose-category"
+												className="prompt-editor-header-control"
+												value={poseCategory}
+												onChange={(event) => setPoseCategory(event.target.value)}
+												disabled={poseCategories.length === 0}
+											>
+												{poseCategories.length === 0 ? (
+													<option value="">No pose titles</option>
+												) : (
+													<>
+														<option value="">Select</option>
+														{poseCategories.map((category) => (
+															<option key={category} value={category}>
+																{category}
+															</option>
+														))}
+													</>
+												)}
+											</select>
+										</div>
+									</th>
+									<th className="prompt-editor-control-cell">
+										<div className="prompt-editor-header-inline-control">
+											<input
+												id="additional-text"
+												className="prompt-editor-header-control"
+												type="text"
+												value={additionalText}
+												onChange={(event) => setAdditionalText(event.target.value)}
+												placeholder=""
+											/>
+										</div>
+									</th>
+								</tr>
+							</thead>
+							<tbody>
+								{summaryRows.length === 0 ? (
+									<tr>
+										<td colSpan={4} className="prompt-editor-empty">No rows</td>
+									</tr>
+								) : summaryRows.map((row) => {
+									return (
+									<tr key={`summary-row-${row.index}`}>
+										<td>{row.index + 1}</td>
+										<td>
+											<div className="prompt-editor-row-cell">
+												<input
+													type="checkbox"
+													className="prompt-editor-small-checkbox"
+													checked={selectedHistoryIndexes.has(row.index)}
+													onChange={(event) =>
+														handleShiftToggleHistoryRow(
+															row.index,
+															event.target.checked,
+															Boolean((event.nativeEvent as MouseEvent).shiftKey),
+														)
+													}
+													disabled={!row.historyValue}
+													aria-label={`Select history row ${row.index + 1}`}
+												/>
+												<span className="prompt-editor-table-text" title={row.historyValue || "-"}>
+													{row.historyValue ? truncateForTable(row.historyValue) : "-"}
+												</span>
+											</div>
+										</td>
+										<td>
+											<div className="prompt-editor-row-cell">
+												<input
+													type="checkbox"
+													className="prompt-editor-small-checkbox"
+													checked={selectedPoseIndexes.has(row.index)}
+													onChange={(event) =>
+														handleShiftTogglePoseRow(
+															row.index,
+															event.target.checked,
+															Boolean((event.nativeEvent as MouseEvent).shiftKey),
+														)
+													}
+													disabled={!row.poseValue}
+													aria-label={`Select pose row ${row.index + 1}`}
+												/>
+												<span className="prompt-editor-table-text" title={row.poseValue || "-"}>
+													{row.poseValue ? truncateForTable(row.poseValue) : "-"}
+												</span>
+											</div>
+										</td>
+										<td title={additionalText.trim() || "-"}>{additionalText.trim() ? truncateForTable(additionalText.trim()) : "-"}</td>
+									</tr>
+									);
+								})}
+							</tbody>
+						</>
+					)}
 				</table>
 			</div>
 
 			<div className="prompt-editor-action-row">
-				<button
-					type="button"
-					className="prompt-editor-delete-button"
-					onClick={handleDeleteSelectedHistory}
-					disabled={selectedHistoryIndexes.size === 0}
-				>
-					Delete History Temp
-				</button>
-				<button
-					type="button"
-					className="prompt-editor-delete-button"
-					onClick={handleDeleteSelectedPose}
-					disabled={selectedPoseIndexes.size === 0}
-				>
-					Delete Pose Temp
-				</button>
+				{!useInputControls ? (
+					<>
+						<button
+							type="button"
+							className="prompt-editor-delete-button"
+							onClick={handleDeleteSelectedHistory}
+							disabled={selectedHistoryIndexes.size === 0}
+						>
+							Delete History Temp
+						</button>
+						<button
+							type="button"
+							className="prompt-editor-delete-button"
+							onClick={handleDeleteSelectedPose}
+							disabled={selectedPoseIndexes.size === 0}
+						>
+							Delete Pose Temp
+						</button>
+					</>
+				) : null}
 				<button type="button" className="prompt-editor-merge-button" onClick={handleMerge}>
 					Merge
 				</button>
