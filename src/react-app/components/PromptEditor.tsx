@@ -749,6 +749,16 @@ export function PromptEditor({ embedded, filterControlMode = "select" }: PromptE
 							−
 						</button>
 					</div>
+					{generatingPromptIndex !== null ? (
+						<div className="prompt-editor-generating-indicator" role="status" aria-live="polite">
+							<span>Generating Prompt {generatingPromptIndex + 1}</span>
+							<span className="prompt-editor-dot-loader" aria-hidden="true">
+								<span>.</span>
+								<span>.</span>
+								<span>.</span>
+							</span>
+						</div>
+					) : null}
 				</div>
 			) : null}
 			<div className="prompt-editor-selection-table-wrap" aria-label="Prompt rows">
@@ -783,7 +793,13 @@ export function PromptEditor({ embedded, filterControlMode = "select" }: PromptE
 													aria-label={`Generate prompt ${promptIndex + 1}`}
 													title="Generate"
 												>
-													{generatingPromptIndex === promptIndex ? "…" : "⚡"}
+													{generatingPromptIndex === promptIndex ? (
+														<span className="prompt-editor-dot-loader" aria-hidden="true">
+															<span>.</span>
+															<span>.</span>
+															<span>.</span>
+														</span>
+													) : "⚡"}
 												</button>
 											</div>
 										</th>
