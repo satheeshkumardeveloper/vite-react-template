@@ -93,6 +93,30 @@ const truncateForTable = (value: string, maxLength = 50) => {
 	return `${normalized.slice(0, maxLength)}...`;
 };
 
+const formatMergedPrompt = (parts: string[]) => {
+	const normalizedParts = parts
+		.map((part) => String(part || "").trim())
+		.filter(Boolean)
+		.map((part) => part.replace(/[\s,.;:!?]+$/g, "").trim())
+		.filter(Boolean);
+
+	if (normalizedParts.length === 0) return "";
+	return `${normalizedParts.join(", ")}.`;
+};
+
+const formatMergedPromptsForClipboard = (prompts: string[]) => {
+	const lines = prompts.flatMap((prompt) => {
+		const sentences = parseCompletedSentences(prompt);
+		if (sentences.length > 0) {
+			return sentences.map((sentence) => sentence.trim()).filter(Boolean);
+		}
+		const normalized = String(prompt || "").trim();
+		return normalized ? [normalized] : [];
+	});
+
+	return lines.join("\n");
+};
+
 export function PromptEditor({ embedded, filterControlMode = "select" }: PromptEditorProps) {
 	const useInputControls = filterControlMode === "input";
 	const [historyCategories, setHistoryCategories] = useState<string[]>([]);
@@ -616,10 +640,10 @@ export function PromptEditor({ embedded, filterControlMode = "select" }: PromptE
 	const handleMerge = () => {
 		if (useInputControls) {
 			const mergedRows = Array.from({ length: dynamicRowCount }, (_, rowIndex) => {
-				return dynamicPromptIndexes
+				const parts = dynamicPromptIndexes
 					.map((promptIndex) => getDynamicPromptRowValue(promptIndex, rowIndex).trim())
-					.filter(Boolean)
-					.join(" ");
+					.filter(Boolean);
+				return formatMergedPrompt(parts);
 			}).filter(Boolean);
 
 			if (mergedRows.length === 0) {
@@ -643,7 +667,7 @@ export function PromptEditor({ embedded, filterControlMode = "select" }: PromptE
 		const mergedRows = Array.from({ length: maxRows }, (_, index) => {
 			const historyRow = historyRows[index] ?? selectedHistoryPrompt ?? "";
 			const poseRow = poseRows[index] ?? selectedPosePrompt ?? "";
-			return [historyRow, poseRow, additionalText.trim()].filter(Boolean).join(" ");
+			return formatMergedPrompt([historyRow, poseRow, additionalText.trim()]);
 		}).filter(Boolean);
 
 		if (mergedRows.length === 0) {
@@ -661,7 +685,8 @@ export function PromptEditor({ embedded, filterControlMode = "select" }: PromptE
 		}
 
 		try {
-			await navigator.clipboard.writeText(mergedPrompts.join("\n"));
+			const clipboardText = formatMergedPromptsForClipboard(mergedPrompts);
+			await navigator.clipboard.writeText(clipboardText);
 			setStatus("Merged content copied.");
 		} catch {
 			setStatus("Clipboard access is blocked by the browser.");
@@ -685,7 +710,8 @@ export function PromptEditor({ embedded, filterControlMode = "select" }: PromptE
 				}
 			}
 
-			await navigator.clipboard.writeText(value);
+			const clipboardText = formatMergedPromptsForClipboard([value]);
+			await navigator.clipboard.writeText(clipboardText);
 			setUndoClipboardText(previousClipboard);
 			setCopiedMergedIndexes((prev) => {
 				const next = new Set(prev);
