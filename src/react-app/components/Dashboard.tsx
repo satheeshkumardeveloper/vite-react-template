@@ -9,11 +9,12 @@ import { Files } from "./Files";
 import { AIChat } from "./AIChat";
 import { PromptEditor } from "./PromptEditor";
 import { AIPromptEditor } from "./AIPromptEditor";
+import { OCRAI } from "./OCRAI.tsx";
 import "../styles/Dashboard.css";
 
 type DashboardProps = {
-	activeView: "dashboard" | "image-prompt" | "image-cloud" | "history" | "instruction" | "clipboard" | "pose-prompt" | "files" | "ai-chat" | "prompt-editor" | "ai-prompt-editor";
-	onNavigate: (view: "dashboard" | "image-prompt" | "image-cloud" | "history" | "instruction" | "clipboard" | "pose-prompt" | "files" | "ai-chat" | "prompt-editor" | "ai-prompt-editor") => void;
+	activeView: "dashboard" | "image-prompt" | "image-cloud" | "history" | "instruction" | "clipboard" | "pose-prompt" | "files" | "ai-chat" | "prompt-editor" | "ai-prompt-editor" | "ocr-ai";
+	onNavigate: (view: "dashboard" | "image-prompt" | "image-cloud" | "history" | "instruction" | "clipboard" | "pose-prompt" | "files" | "ai-chat" | "prompt-editor" | "ai-prompt-editor" | "ocr-ai") => void;
 };
 
 export function Dashboard({ activeView, onNavigate }: DashboardProps) {
@@ -118,6 +119,13 @@ export function Dashboard({ activeView, onNavigate }: DashboardProps) {
 								>
 									AI-Prompt Editor
 								</button>
+								<button
+									type="button"
+									className={activeView === "ocr-ai" ? "dropdown-link active" : "dropdown-link"}
+									onClick={() => onNavigate("ocr-ai")}
+								>
+									OCR AI
+								</button>
 							</div>
 						</div>
 					</div>
@@ -163,6 +171,9 @@ export function Dashboard({ activeView, onNavigate }: DashboardProps) {
 				</button>
 				<button type="button" className={activeView === "ai-prompt-editor" ? "mobile-nav-button mobile-nav-button--active" : "mobile-nav-button"} onClick={() => onNavigate("ai-prompt-editor")}>
 					AI-Prompt Editor
+				</button>
+				<button type="button" className={activeView === "ocr-ai" ? "mobile-nav-button mobile-nav-button--active" : "mobile-nav-button"} onClick={() => onNavigate("ocr-ai")}>
+					OCR AI
 				</button>
 			</div>
 
@@ -221,6 +232,10 @@ export function Dashboard({ activeView, onNavigate }: DashboardProps) {
 			) : activeView === "ai-prompt-editor" ? (
 				<div className="dashboard-card dashboard-card--full">
 					<AIPromptEditor embedded />
+				</div>
+			) : activeView === "ocr-ai" ? (
+				<div className="dashboard-card dashboard-card--full">
+					<OCRAI embedded />
 				</div>
 			) : null}
 			</div>

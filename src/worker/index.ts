@@ -301,6 +301,103 @@ app.post("/api/image-generate", async (c) => {
 	}
 });
 
+app.post("/api/ocr-ai", async (c) => {
+	try {
+		const body = await c.req.json();
+		const imageDataUrl = String(body?.imageDataUrl || "").trim();
+		const model = String(body?.model || "gemini-2.5-flash").trim();
+		const allowedModels = [
+			"gemini-3.8-flash",
+			"gemini-3.7-flash",
+			"gemini-3.6-flash",
+			"gemini-3.5-flash",
+			"gemini-3.5-flash-lite",
+			"gemini-3.1-flash-lite-preview",
+			"gemini-3-flash-preview",
+			"gemini-2.5-flash",
+			"gemini-2.5-flash-lite",
+		];
+
+		if (!allowedModels.includes(model)) {
+			return c.json({ error: "Unsupported model selected" }, 400);
+		}
+
+		if (!imageDataUrl || !imageDataUrl.startsWith("data:image/")) {
+			return c.json({ error: "imageDataUrl must be a valid image data URL" }, 400);
+		}
+
+		const matches = imageDataUrl.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+		if (!matches) {
+			return c.json({ error: "Invalid image data URL format" }, 400);
+		}
+
+		const mimeType = matches[1];
+		const base64Data = matches[2];
+
+		const apiKey = c.env.GEMINI_API_KEY_PRIMARY;
+		if (!apiKey) {
+			return c.json({ error: "Missing GEMINI_API_KEY_PRIMARY in Worker environment." }, 500);
+		}
+
+		const upstream = await fetch(
+			`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${apiKey}`,
+			{
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					contents: [{
+						role: "user",
+						parts: [
+							{ text: "Extract all visible text from this image. Return plain text only and preserve line breaks as much as possible." },
+							{
+								inlineData: {
+									mimeType,
+									data: base64Data,
+								},
+							},
+						],
+					}],
+					generationConfig: {
+						maxOutputTokens: 4096,
+					},
+				}),
+			},
+		);
+
+		const rawText = await upstream.text();
+		let output: any = null;
+
+		try {
+			output = JSON.parse(rawText);
+		} catch {
+			return c.json({ error: "Invalid Gemini OCR response", raw: rawText }, 502);
+		}
+
+		if (!upstream.ok || output?.error) {
+			return new Response(
+				JSON.stringify({ error: output?.error?.message || "Google Gemini OCR request failed", upstream: output }),
+				{
+					status: upstream.status || 502,
+					headers: { "content-type": "application/json;charset=UTF-8" },
+				},
+			);
+		}
+
+		const text = String(output?.candidates?.[0]?.content?.parts?.map((part: { text?: string }) => part.text || "").join("") || "").trim();
+
+		return c.json({
+			text,
+			model,
+			usage: output?.usageMetadata || null,
+			id: output?.responseId || output?.id || null,
+		});
+	} catch (error) {
+		return c.json({ error: error instanceof Error ? error.message : String(error) }, 500);
+	}
+});
+
 // GET image prompts - fetch all saved prompts
 app.get("/api/image-prompts", async (c) => {
 	try {
